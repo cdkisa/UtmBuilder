@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Projects/utm-builder/utm-builder/src -type f \\\\\\(-name *.js -o -name *.jsx -o -name *.ts -o -name *.tsx -o -name *.json \\\\\\))",
+      "Bash(find /c/Projects/utm-builder/utm-builder -not -path */node_modules* -type f)",
+      "Bash(npm install:*)",
+      "Bash(npx playwright:*)",
+      "Bash(npx vite:*)",
+      "Bash(node -e \"const QR = require\\(''qr-code-styling''\\); console.log\\(typeof QR\\)\")",
+      "Bash(node -e \":*)"
+    ]
+  }
+}

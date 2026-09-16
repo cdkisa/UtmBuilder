@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import Modal from '../components/Modal';
 import { Button } from '../components/UI';
-import { useWorkspace } from '../hooks/useWorkspace';
 import { useToast } from '../hooks/useToast';
-import { parseCsvText, buildUtmUrl } from '../utils/utm';
-import db from '../db';
+import { useLinkPolicy } from '../hooks/useLinks';
+import { parseCsvText } from '../utils/utm';
+import { composeLink, saveLinks } from '../links';
 
 export default function ImportLinksModal({ open, onClose }) {
-  const { settings } = useWorkspace();
+
   const toast = useToast();
   const [file, setFile] = useState(null);
+  const policy = useLinkPolicy();
 
   const handleFile = (e) => {
     setFile(e.target.files[0]);
@@ -21,30 +22,51 @@ export default function ImportLinksModal({ open, onClose }) {
     const rows = parseCsvText(text);
     if (rows.length === 0) { toast('No rows found in CSV', 'error'); return; }
 
-    let count = 0;
-    for (const row of rows) {
-      const url = row.full_url || row.url || row.URL || '';
-      if (!url) continue;
-      const campaign = row.utm_campaign || row.campaign || '';
-      const medium = row.utm_medium || row.medium || '';
-      const source = row.utm_source || row.source || '';
-      const term = row.utm_term || row.term || '';
-      const content = row.utm_content || row.content || '';
-      const notes = row.notes || '';
-      const shortUrl = row.short_url || '';
+    const drafts = [];
+    const skipped = [];
 
-      const fullUrl = buildUtmUrl(url, { campaign, medium, source, term, content }, [], settings?.spaceChar || 'hyphen');
+    for (const [index, row] of rows.entries()) {
+      // A row's own UTM columns win over anything already on the URL (ADR-0002).
+      const destination = row.full_url || row.url || row.URL || '';
+      if (!destination) continue;
 
-      await db.links.add({
-        url, fullUrl, shortUrl,
-        campaign, medium, source, term, content,
-        templateId: null, notes, createdBy: 'Import',
-        createdAt: new Date().toISOString(),
-      });
-      count++;
+      const result = composeLink(
+        {
+          destination,
+          utm: {
+            campaign: row.utm_campaign || row.campaign || '',
+            medium: row.utm_medium || row.medium || '',
+            source: row.utm_source || row.source || '',
+            term: row.utm_term || row.term || '',
+            content: row.utm_content || row.content || '',
+          },
+          customParameters: [],
+          attributes: {},
+          templateId: null,
+          shortener: null,
+          notes: row.notes || '',
+          author: 'Import',
+        },
+        policy,
+      );
+
+      if (!result.ok) {
+        skipped.push(index + 2);
+        continue;
+      }
+
+      drafts.push({ ...result.draft, shortUrl: row.short_url || '' });
     }
 
-    toast(`Imported ${count} links`);
+    if (drafts.length === 0) { toast('No importable rows found', 'error'); return; }
+
+    await saveLinks(drafts);
+
+    toast(
+      skipped.length > 0
+        ? `Imported ${drafts.length} links, skipped ${skipped.length}`
+        : `Imported ${drafts.length} links`,
+    );
     setFile(null);
     onClose();
   };

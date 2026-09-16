@@ -2,13 +2,16 @@ import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import Modal from '../components/Modal';
 import { Button, Input, ComboInput, Select, Checkbox } from '../components/UI';
-import { useWorkspace } from '../hooks/useWorkspace';
 import { useToast } from '../hooks/useToast';
-import { buildUtmUrl, generateShortCode, copyToClipboard } from '../utils/utm';
+import { useLinkPolicy, useCurrentAuthor } from '../hooks/useLinks';
+import { copyToClipboard } from '../utils/utm';
+import { composeLink, composeTaggedUrl, saveLink, saveLinks } from '../links';
 import db from '../db';
 
+/** The built-in offline Shortener's domain; nothing resolves it (ADR-0003). */
+const LOCAL_SHORTENER_DOMAIN = 'short.local';
+
 export default function CreateLinkModal({ open, onClose, mode: initialMode = 'single' }) {
-  const { settings } = useWorkspace();
   const toast = useToast();
 
   const [mode, setMode] = useState(initialMode);
@@ -57,9 +60,31 @@ export default function CreateLinkModal({ open, onClose, mode: initialMode = 'si
     }
   }, [templateId, templates]);
 
-  const spaceChar = settings?.spaceChar || 'hyphen';
+  const author = useCurrentAuthor();
+  const policy = useLinkPolicy();
 
-  const generatedUrl = buildUtmUrl(url, { campaign, medium, source, term, content }, customParams, spaceChar);
+  // 'local' is the built-in offline Shortener; every other option is a
+  // configured Shortener, whose own domain is the one that must be used.
+  const chosenShortener = () => {
+    if (shortener === 'none') return null;
+    if (shortener === 'local') return { domain: LOCAL_SHORTENER_DOMAIN };
+    const match = shorteners.find(s => String(s.id) === shortener);
+    if (!match) return null;
+    return { domain: match.domain || LOCAL_SHORTENER_DOMAIN };
+  };
+
+  const buildIntent = (destination) => ({
+    destination,
+    utm: { campaign, medium, source, term, content },
+    customParameters: customParams.map(cp => ({ name: cp.name, value: cp.value })),
+    attributes: attributeValues,
+    templateId: templateId ? Number(templateId) : null,
+    shortener: chosenShortener(),
+    notes,
+    author,
+  });
+
+  const previewTaggedUrl = composeTaggedUrl(url, buildIntent(), policy);
 
   const reset = () => {
     setMode(initialMode);
@@ -83,25 +108,37 @@ export default function CreateLinkModal({ open, onClose, mode: initialMode = 'si
     }
   };
 
+  const compose = (destination) => composeLink(buildIntent(destination), policy);
+
+  const reportViolations = (violations) => {
+    toast(violations[0]?.message || 'This link is not valid', 'error');
+  };
+
   const handleSave = async () => {
     setIsVerifying(true);
     if (mode === 'email') {
       if (!emailHtml.trim()) { toast('Enter HTML email code', 'error'); setIsVerifying(false); return; }
       const newHtml = emailHtml.replace(/(href=["'])(https?:\/\/[^"']+)/g, (match, prefix, matchUrl) => {
-         const fullUrl = buildUtmUrl(matchUrl, { campaign, medium, source, term, content }, customParams, spaceChar);
-         return prefix + fullUrl;
+        return prefix + composeTaggedUrl(matchUrl, buildIntent(), policy);
       });
       setProcessedHtml(newHtml);
       await copyToClipboard(newHtml);
       toast('UTM parameters injected & HTML copied to clipboard!');
       setIsVerifying(false);
-      return; 
+      return;
     }
 
     if (mode === 'bulk') {
       const urls = bulkUrls.split('\n').map(u => u.trim()).filter(Boolean);
       if (urls.length === 0) { toast('Enter at least one URL', 'error'); setIsVerifying(false); return; }
-      
+
+      const drafts = [];
+      for (const u of urls) {
+        const result = compose(u);
+        if (!result.ok) { reportViolations(result.violations); setIsVerifying(false); return; }
+        drafts.push(result.draft);
+      }
+
       for (const u of urls) {
         const v = await verifyUrl(u);
         if (!v.ok) {
@@ -112,19 +149,12 @@ export default function CreateLinkModal({ open, onClose, mode: initialMode = 'si
         }
       }
 
-      for (const u of urls) {
-        const fullUrl = buildUtmUrl(u, { campaign, medium, source, term, content }, customParams, spaceChar);
-        const shortUrl = shortener !== 'none' ? `https://short.local/${generateShortCode()}` : '';
-        await db.links.add({
-          url: u, fullUrl, shortUrl,
-          campaign, medium, source, term, content,
-          templateId: templateId ? Number(templateId) : null,
-          notes, createdBy: 'Admin', createdAt: new Date().toISOString(),
-        });
-      }
+      await saveLinks(drafts);
       toast(`${urls.length} links created`);
     } else {
-      if (!url) { toast('URL is required', 'error'); setIsVerifying(false); return; }
+      const result = compose(url);
+      if (!result.ok) { reportViolations(result.violations); setIsVerifying(false); return; }
+
       const v = await verifyUrl(url);
       if (!v.ok) {
         if (!confirm(`Warning: Destination URL appears to be broken (${v.error}). Are you sure you want to save this link?`)) {
@@ -133,29 +163,8 @@ export default function CreateLinkModal({ open, onClose, mode: initialMode = 'si
         }
       }
 
-      const shortUrl = shortener !== 'none' ? `https://short.local/${generateShortCode()}` : '';
-      const linkId = await db.links.add({
-        url, fullUrl: generatedUrl, shortUrl,
-        campaign, medium, source, term, content,
-        templateId: templateId ? Number(templateId) : null,
-        notes, createdBy: 'Admin', createdAt: new Date().toISOString(),
-      });
-      for (const cp of customParams) {
-        if (cp.name && cp.value) {
-          await db.linkCustomParams.add({ linkId, paramName: cp.name, paramValue: cp.value });
-        }
-      }
-      for (const attr of attributes) {
-        const values = attributeValues[attr.id];
-        if (!values) continue;
-        const toSave = Array.isArray(values) ? values : [values];
-        for (const v of toSave) {
-          if (v != null && String(v).trim() !== '') {
-            await db.linkAttributes.add({ linkId, attributeId: attr.id, value: String(v).trim() });
-          }
-        }
-      }
-      await copyToClipboard(shortUrl || generatedUrl);
+      await saveLink(result.draft);
+      await copyToClipboard(result.draft.shortUrl || result.draft.taggedUrl);
       toast('Link created and copied to clipboard');
     }
     setIsVerifying(false);
@@ -363,10 +372,10 @@ export default function CreateLinkModal({ open, onClose, mode: initialMode = 'si
         ]} />
 
       {/* Preview */}
-      {mode === 'single' && generatedUrl && (
+      {mode === 'single' && previewTaggedUrl && (
         <div className="mb-5 p-3 bg-gray-50 rounded-lg">
           <label className="block text-xs font-semibold text-gray-500 mb-1">Generated URL</label>
-          <p className="text-xs text-brand-700 break-all font-mono">{generatedUrl}</p>
+          <p className="text-xs text-brand-700 break-all font-mono">{previewTaggedUrl}</p>
         </div>
       )}
       {mode === 'email' && processedHtml && (

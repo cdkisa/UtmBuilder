@@ -1,16 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useWorkspace } from '../hooks/useWorkspace';
 import { useToast } from '../hooks/useToast';
+import { useLinkPolicy, useTaggedUrl, useCurrentAuthor } from '../hooks/useLinks';
 import { Button, EmptyState, ComboInput, Input, Select, Checkbox } from '../components/UI';
 import Modal from '../components/Modal';
-import { buildUtmUrl, formatDate, exportToCsv, copyToClipboard } from '../utils/utm';
+import { formatDate, exportToCsv, copyToClipboard } from '../utils/utm';
+import { composeLink, composeTaggedUrl, saveLink } from '../links';
 import db from '../db';
 import QRCode from 'qrcode';
 import QRCodeStyling from 'qr-code-styling';
 
 export default function QRCodesPage() {
   const toast = useToast();
+  const taggedUrl = useTaggedUrl();
   const [showCreate, setShowCreate] = useState(false);
   const [showDesign, setShowDesign] = useState(false);
   const [showEditDesign, setShowEditDesign] = useState(false);
@@ -21,6 +23,7 @@ export default function QRCodesPage() {
     () => db.links.filter(l => l.qrCode).toArray(),
     []
   ) || [];
+
 
   const filtered = links.filter(l =>
     !search || [l.url, l.campaign, l.source].some(v => v && v.toLowerCase().includes(search.toLowerCase()))
@@ -80,7 +83,7 @@ export default function QRCodesPage() {
                 <td className="px-4 py-3 text-gray-500">{l.templateId || '-'}</td>
                 <td className="px-4 py-3 text-brand-600 text-xs font-mono">{l.shortUrl}</td>
                 <td className="px-4 py-3 text-gray-500">-</td>
-                <td className="px-4 py-3 text-xs font-mono max-w-[200px] truncate">{l.fullUrl}</td>
+                <td className="px-4 py-3 text-xs font-mono max-w-[200px] truncate">{taggedUrl(l)}</td>
                 <td className="px-4 py-3 text-gray-700">{l.campaign}</td>
                 <td className="px-4 py-3 text-gray-700">{l.medium}</td>
                 <td className="px-4 py-3 text-gray-700">{l.source}</td>
@@ -105,8 +108,10 @@ export default function QRCodesPage() {
 }
 
 function CreateQRModal({ open, onClose }) {
-  const { settings } = useWorkspace();
   const toast = useToast();
+  const policy = useLinkPolicy();
+  const linkTaggedUrl = useTaggedUrl();
+  const author = useCurrentAuthor();
 
   const [mode, setMode] = useState('new');
   const [selectedLinkId, setSelectedLinkId] = useState('');
@@ -146,7 +151,7 @@ function CreateQRModal({ open, onClose }) {
   const filteredLinks = existingLinks.filter(l => {
     if (!linkSearch) return true;
     const s = linkSearch.toLowerCase();
-    return [l.url, l.fullUrl, l.campaign, l.medium, l.source].some(v => v && v.toLowerCase().includes(s));
+    return [l.url, linkTaggedUrl(l), l.campaign, l.medium, l.source].some(v => v && v.toLowerCase().includes(s));
   });
 
   // When an existing link is selected, populate all fields
@@ -164,16 +169,29 @@ function CreateQRModal({ open, onClose }) {
     }
   }, [selectedLinkId, mode, existingLinks]);
 
-  const spaceChar = settings?.spaceChar || 'hyphen';
-  const targetUrl = mode === 'existing' && selectedLinkId
-    ? (() => { const l = existingLinks.find(lk => lk.id === Number(selectedLinkId)); return l?.shortUrl || l?.fullUrl || ''; })()
+  const buildIntent = (destination) => ({
+    destination,
+    utm: { campaign, medium, source, term, content },
+    customParameters: [],
+    attributes: {},
+    templateId: templateId ? Number(templateId) : null,
+    shortener: null,
+    notes,
+    author,
+  });
+
+  const selectedEncodedUrl = mode === 'existing' && selectedLinkId
+    ? (() => {
+        const l = existingLinks.find(lk => lk.id === Number(selectedLinkId));
+        return l ? (l.shortUrl || linkTaggedUrl(l)) : '';
+      })()
     : '';
-  const generatedUrl = mode === 'new'
-    ? buildUtmUrl(url, { campaign, medium, source, term, content }, [], spaceChar)
-    : targetUrl;
+  const previewTaggedUrl = mode === 'new'
+    ? composeTaggedUrl(url, buildIntent(), policy)
+    : selectedEncodedUrl;
 
   useEffect(() => {
-    if (generatedUrl) {
+    if (previewTaggedUrl) {
       const qrTmpl = qrTemplates.find(t => t.id === Number(qrDesignId));
       const opts = {
         width: 200,
@@ -183,11 +201,11 @@ function CreateQRModal({ open, onClose }) {
           light: qrTmpl?.bgColor || '#FFFFFF',
         },
       };
-      QRCode.toDataURL(generatedUrl, opts).then(setQrPreview).catch(() => setQrPreview(''));
+      QRCode.toDataURL(previewTaggedUrl, opts).then(setQrPreview).catch(() => setQrPreview(''));
     } else {
       setQrPreview('');
     }
-  }, [generatedUrl, qrDesignId, qrTemplates]);
+  }, [previewTaggedUrl, qrDesignId, qrTemplates]);
 
   useEffect(() => {
     if (templateId) {
@@ -219,7 +237,7 @@ function CreateQRModal({ open, onClose }) {
       };
       let qrDataUrl = '';
       try {
-        qrDataUrl = await QRCode.toDataURL(generatedUrl, opts);
+        qrDataUrl = await QRCode.toDataURL(previewTaggedUrl, opts);
       } catch (e) {
         toast('Failed to generate QR code', 'error');
         return;
@@ -229,10 +247,14 @@ function CreateQRModal({ open, onClose }) {
         qrCode: true, qrDataUrl, qrDesignId: qrDesignId ? Number(qrDesignId) : null,
       });
 
-      await copyToClipboard(generatedUrl);
+      await copyToClipboard(previewTaggedUrl);
       toast('QR Code added to existing link');
     } else {
-      if (!url) { toast('URL is required', 'error'); return; }
+      const result = composeLink(buildIntent(url), policy);
+      if (!result.ok) {
+        toast(result.violations[0]?.message || 'This link is not valid', 'error');
+        return;
+      }
 
       const qrTmpl = qrTemplates.find(t => t.id === Number(qrDesignId));
       const opts = {
@@ -241,21 +263,18 @@ function CreateQRModal({ open, onClose }) {
       };
       let qrDataUrl = '';
       try {
-        qrDataUrl = await QRCode.toDataURL(generatedUrl || url, opts);
+        qrDataUrl = await QRCode.toDataURL(result.draft.taggedUrl, opts);
       } catch (e) {
         toast('Failed to generate QR code', 'error');
         return;
       }
 
-      await db.links.add({
-        url, fullUrl: generatedUrl, shortUrl: '',
-        campaign, medium, source, term, content,
-        templateId: templateId ? Number(templateId) : null,
-        notes, createdBy: 'Admin', createdAt: new Date().toISOString(),
+      const linkId = await saveLink(result.draft);
+      await db.links.update(linkId, {
         qrCode: true, qrDataUrl, qrDesignId: qrDesignId ? Number(qrDesignId) : null,
       });
 
-      await copyToClipboard(generatedUrl);
+      await copyToClipboard(result.draft.taggedUrl);
       toast('QR Code created and link copied');
     }
 
@@ -306,7 +325,7 @@ function CreateQRModal({ open, onClose }) {
                         className={`w-full text-left px-3 py-2.5 text-sm border-b border-gray-50 last:border-0 transition hover:bg-brand-50 ${
                           selectedLinkId === String(l.id) ? 'bg-brand-50 text-brand-700 font-medium' : 'text-gray-700'
                         }`}>
-                        <span className="block text-xs font-mono text-gray-500 truncate">{l.shortUrl || l.fullUrl}</span>
+                        <span className="block text-xs font-mono text-gray-500 truncate">{l.shortUrl || linkTaggedUrl(l)}</span>
                         <span className="flex gap-2 mt-0.5 text-xs text-gray-400">
                           {l.campaign && <span>{l.campaign}</span>}
                           {l.medium && <span>{l.medium}</span>}
@@ -322,7 +341,7 @@ function CreateQRModal({ open, onClose }) {
               {selectedLink && (
                 <div className="p-3 bg-gray-50 rounded-lg mb-3">
                   <p className="text-xs font-semibold text-gray-600 mb-1">Selected Link</p>
-                  <p className="text-xs font-mono text-brand-700 break-all">{selectedLink.shortUrl || selectedLink.fullUrl}</p>
+                  <p className="text-xs font-mono text-brand-700 break-all">{selectedLink.shortUrl || linkTaggedUrl(selectedLink)}</p>
                   <div className="flex gap-3 mt-1.5 text-xs text-gray-500">
                     {selectedLink.campaign && <span>Campaign: {selectedLink.campaign}</span>}
                     {selectedLink.medium && <span>Medium: {selectedLink.medium}</span>}
@@ -387,9 +406,9 @@ function CreateQRModal({ open, onClose }) {
         </div>
       </div>
 
-      {generatedUrl && (
+      {previewTaggedUrl && (
         <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-          <p className="text-xs text-brand-700 break-all font-mono">{generatedUrl}</p>
+          <p className="text-xs text-brand-700 break-all font-mono">{previewTaggedUrl}</p>
         </div>
       )}
 

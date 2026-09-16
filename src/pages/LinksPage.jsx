@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useToast } from '../hooks/useToast';
+import { useTaggedUrl, useCurrentAuthor } from '../hooks/useLinks';
 import { Button, EmptyState, Badge } from '../components/UI';
 import Modal from '../components/Modal';
 import CreateLinkModal from './CreateLinkModal';
 import ImportLinksModal from './ImportLinksModal';
 import { exportToCsv, copyToClipboard, formatDate } from '../utils/utm';
+import { cloneLink, deleteLink } from '../links';
 import db from '../db';
 import QRCode from 'qrcode';
 
@@ -25,10 +27,13 @@ export default function LinksPage() {
     () => db.links.reverse().toArray()
   ) || [];
 
+  const taggedUrl = useTaggedUrl();
+  const author = useCurrentAuthor();
+
   const filtered = links.filter(l => {
     if (search) {
       const s = search.toLowerCase();
-      const match = [l.url, l.fullUrl, l.campaign, l.medium, l.source, l.term, l.content, l.notes]
+      const match = [l.url, taggedUrl(l), l.campaign, l.medium, l.source, l.term, l.content, l.notes]
         .some(v => v && String(v).toLowerCase().includes(s));
       if (!match) return false;
     }
@@ -51,7 +56,7 @@ export default function LinksPage() {
   const handleExport = () => {
     const data = filtered.map(l => ({
       created_by: l.createdBy, created_at: l.createdAt, short_url: l.shortUrl || '',
-      full_url: l.fullUrl || '', campaign: l.campaign, medium: l.medium,
+      full_url: taggedUrl(l), campaign: l.campaign, medium: l.medium,
       source: l.source, term: l.term, content: l.content, notes: l.notes || '', url: l.url,
     }));
     exportToCsv(data, `utm-links-${Date.now()}.csv`);
@@ -64,29 +69,14 @@ export default function LinksPage() {
 
   const confirmDelete = async () => {
     if (deleteId) {
-      await db.links.delete(deleteId);
+      await deleteLink(deleteId);
       toast('Link deleted');
       setDeleteId(null);
     }
   };
 
   const handleDuplicate = async (link) => {
-    const now = new Date().toISOString();
-    const { id: _omit, qrCode, qrDataUrl, ...linkData } = link;
-    const newLink = {
-      ...linkData,
-      shortUrl: '',
-      createdAt: now,
-    };
-    const newId = await db.links.add(newLink);
-    const [customParams, attrRows] = await Promise.all([
-      db.linkCustomParams.where('linkId').equals(link.id).toArray(),
-      db.linkAttributes.where('linkId').equals(link.id).toArray(),
-    ]);
-    await Promise.all([
-      ...customParams.map(cp => db.linkCustomParams.add({ linkId: newId, paramName: cp.paramName, paramValue: cp.paramValue })),
-      ...attrRows.map(ar => db.linkAttributes.add({ linkId: newId, attributeId: ar.attributeId, value: ar.value })),
-    ]);
+    await cloneLink(link.id, author);
     toast('Link duplicated');
   };
 
@@ -173,8 +163,8 @@ export default function LinksPage() {
           <tbody>
             {Object.entries(grouped).map(([group, items]) => (
               items.length === 0 ? null : (
-                <GroupRows key={group} group={group} items={items} showGroup={groupBy !== ''}
-                  onCopy={async (link) => { await copyToClipboard(link.shortUrl || link.fullUrl); toast('Copied!'); }}
+                <GroupRows key={group} group={group} items={items} showGroup={groupBy !== ''} taggedUrl={taggedUrl}
+                  onCopy={async (link) => { await copyToClipboard(link.shortUrl || taggedUrl(link)); toast('Copied!'); }}
                   onDuplicate={handleDuplicate}
                   onDelete={handleDelete}
                   onQR={(link) => setQrLink(link)} />
@@ -193,7 +183,7 @@ export default function LinksPage() {
 
       <CreateLinkModal open={showCreate} onClose={() => setShowCreate(false)} mode={createMode} />
       <ImportLinksModal open={showImport} onClose={() => setShowImport(false)} />
-      <QRFromLinkModal link={qrLink} onClose={() => setQrLink(null)} />
+      <QRFromLinkModal link={qrLink} taggedUrl={taggedUrl} onClose={() => setQrLink(null)} />
 
       <Modal open={deleteId !== null} onClose={() => setDeleteId(null)} title="Delete Link" width="max-w-sm">
         <p className="text-sm text-gray-600 mb-5">Are you sure you want to delete this link? This action cannot be undone.</p>
@@ -206,7 +196,7 @@ export default function LinksPage() {
   );
 }
 
-function GroupRows({ group, items, showGroup, onCopy, onDuplicate, onDelete, onQR }) {
+function GroupRows({ group, items, showGroup, taggedUrl, onCopy, onDuplicate, onDelete, onQR }) {
   return (
     <>
       {showGroup && (
@@ -219,7 +209,7 @@ function GroupRows({ group, items, showGroup, onCopy, onDuplicate, onDelete, onQ
           <td className="px-4 py-3">{l.templateId ? <Badge>Template</Badge> : ''}</td>
           <td className="px-4 py-3 text-gray-500">-</td>
           <td className="px-4 py-3 text-brand-600 text-xs font-mono max-w-[140px] truncate">{l.shortUrl}</td>
-          <td className="px-4 py-3 text-xs font-mono max-w-[220px] truncate" title={l.fullUrl}>{l.fullUrl}</td>
+          <td className="px-4 py-3 text-xs font-mono max-w-[220px] truncate" title={taggedUrl(l)}>{taggedUrl(l)}</td>
           <td className="px-4 py-3 text-gray-700">{l.campaign}</td>
           <td className="px-4 py-3 text-gray-700">{l.medium}</td>
           <td className="px-4 py-3 text-gray-700">{l.source}</td>
@@ -240,18 +230,18 @@ function GroupRows({ group, items, showGroup, onCopy, onDuplicate, onDelete, onQ
   );
 }
 
-function QRFromLinkModal({ link, onClose }) {
+function QRFromLinkModal({ link, taggedUrl, onClose }) {
   const toast = useToast();
   const [qrDataUrl, setQrDataUrl] = useState('');
 
-  const targetUrl = link?.shortUrl || link?.fullUrl || '';
+  const encodedUrl = link ? (link.shortUrl || taggedUrl(link)) : '';
 
   useEffect(() => {
-    if (!targetUrl) { setQrDataUrl(''); return; }
-    QRCode.toDataURL(targetUrl, { width: 300, margin: 2, color: { dark: '#000000', light: '#FFFFFF' } })
+    if (!encodedUrl) { setQrDataUrl(''); return; }
+    QRCode.toDataURL(encodedUrl, { width: 300, margin: 2, color: { dark: '#000000', light: '#FFFFFF' } })
       .then(setQrDataUrl)
       .catch(() => setQrDataUrl(''));
-  }, [targetUrl]);
+  }, [encodedUrl]);
 
   const handleDownload = () => {
     if (!qrDataUrl) return;
@@ -270,7 +260,7 @@ function QRFromLinkModal({ link, onClose }) {
   return (
     <Modal open={!!link} onClose={onClose} title="QR Code" width="max-w-sm">
       <div className="flex flex-col items-center gap-4">
-        <p className="text-xs text-gray-500 break-all text-center font-mono w-full">{targetUrl}</p>
+        <p className="text-xs text-gray-500 break-all text-center font-mono w-full">{encodedUrl}</p>
         {qrDataUrl ? (
           <img src={qrDataUrl} alt="QR Code" className="w-[220px] h-[220px] rounded-lg border border-gray-200" />
         ) : (

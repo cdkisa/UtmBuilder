@@ -39,8 +39,12 @@ What a user is asking for: a Destination, UTM values, Custom Parameters, Attribu
 _Avoid_: form data, link request, payload
 
 **Link Draft**:
-A complete, valid Link that has not been saved yet, including its derived Tagged URL and any Short URL. Composing turns a Link Intent into either a Link Draft or a list of violations.
+A complete, valid Link that has not been saved yet, including its derived Tagged URL and any Short URL. Composing turns a Link Intent into either a Link Draft or a list of Violations.
 _Avoid_: pending link, new link, candidate
+
+**Violation**:
+A reason a Link Intent cannot become a Link Draft, naming the field at fault. Composing produces either a Draft or Violations, never both.
+_Avoid_: error, validation failure, issue
 
 ### Configured elsewhere, used when composing
 
@@ -51,3 +55,11 @@ _Avoid_: parameter, preset value, suggestion
 **Shortener**:
 A configured domain that can issue Short URLs standing in for a Link's Tagged URL.
 _Avoid_: link shortener service, redirector
+
+**Rule**:
+A named set of constraints on the five UTM fields, covering whether each is required or blocked, its maximum length and its prohibited values. A workspace may hold several, and all of them are in force together.
+_Avoid_: validation rule, constraint, policy
+
+**Workspace Policy**:
+The whole of what a workspace permits when composing a Link: its space character and prohibited characters, together with every Rule in force. A Link Intent is composed subject to exactly one Policy.
+_Avoid_: settings, config, workspace rules

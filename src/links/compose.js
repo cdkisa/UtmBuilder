@@ -37,14 +37,15 @@ function stripExistingUtm(url) {
   return remaining ? `${base}?${remaining}${hash}` : `${base}${hash}`;
 }
 
-function taggedUrlFor(destination, utm, customParameters, policy) {
+/** Assembles a Tagged URL. Every value reaching here is already normalised. */
+function taggedUrlFor(destination, utm, customParameters) {
   if (!destination) return '';
 
   const parts = [];
   for (const [field, key] of UTM_FIELDS) {
     const value = utm[field];
     if (!value) continue;
-    parts.push(`${key}=${encodeURIComponent(String(value).replace(/\s+/g, policy.separator))}`);
+    parts.push(`${key}=${encodeURIComponent(String(value))}`);
   }
 
   for (const param of customParameters) {
@@ -58,23 +59,24 @@ function taggedUrlFor(destination, utm, customParameters, policy) {
 
 /**
  * Derives the Tagged URL of a stored Link. Any `fullUrl` left on older rows is
- * ignored rather than trusted (ADR-0001). Pass the Link's Custom Parameter rows
- * to have them included.
+ * ignored rather than trusted (ADR-0001). The Policy normalises here too, so a
+ * Link stored before a setting or Rule changed reflects the change on read.
+ * Pass the Link's Custom Parameter rows to have them included.
  */
 export function taggedUrlOf(link, policy, customParameterRows = []) {
-  const utm = {
+  const utm = policy.normalize({
     campaign: link.campaign,
     medium: link.medium,
     source: link.source,
     term: link.term,
     content: link.content,
-  };
+  });
   const customParameters = customParameterRows.map(row => ({
     name: row.paramName,
     value: row.paramValue,
   }));
 
-  return taggedUrlFor(withScheme(link.url), utm, customParameters, policy);
+  return taggedUrlFor(withScheme(link.url), utm, customParameters);
 }
 
 /**
@@ -86,7 +88,7 @@ export function composeTaggedUrl(destination, intent, policy) {
   const utm = policy.normalize(intent.utm || {});
   const customParameters = (intent.customParameters || []).filter(p => p.name && p.value);
 
-  return taggedUrlFor(cleaned, utm, customParameters, policy);
+  return taggedUrlFor(cleaned, utm, customParameters);
 }
 
 /**
@@ -125,7 +127,7 @@ export function composeLink(intent, policy, deps = {}) {
       templateId: intent.templateId ?? null,
       notes: intent.notes || '',
       author: intent.author,
-      taggedUrl: taggedUrlFor(destination, utm, customParameters, policy),
+      taggedUrl: taggedUrlFor(destination, utm, customParameters),
       shortUrl: shortUrlFor(intent.shortener, generateCode),
     },
   };

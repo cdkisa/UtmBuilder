@@ -10,10 +10,15 @@ export function useCurrentAuthor() {
   return members.find(m => m.isAdmin)?.email || 'Admin';
 }
 
-/** The workspace Policy that composing a Link is subject to. */
+/**
+ * The Workspace Policy that composing a Link is subject to: the workspace's own
+ * settings together with every Rule in force (ADR-0004).
+ */
 export function useLinkPolicy() {
   const { settings } = useWorkspace();
-  return useMemo(() => createPolicy(settings), [settings]);
+  const rules = useLiveQuery(() => db.rules.toArray(), []) || [];
+
+  return useMemo(() => createPolicy(settings, rules), [settings, rules]);
 }
 
 /**

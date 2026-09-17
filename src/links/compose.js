@@ -103,7 +103,8 @@ function shortUrlFor(shortener, generateCode) {
 export function composeLink(intent, policy, deps = {}) {
   const generateCode = deps.generateCode || defaultGenerateCode;
   const destination = stripExistingUtm(withScheme(intent.destination));
-  const utm = policy.normalize(intent.utm || {});
+  const typedUtm = intent.utm || {};
+  const utm = policy.normalize(typedUtm);
   const customParameters = (intent.customParameters || []).filter(p => p.name && p.value);
 
   const violations = [];
@@ -120,8 +121,12 @@ export function composeLink(intent, policy, deps = {}) {
   return {
     ok: true,
     draft: {
+      // What the user typed, not what was normalised: normalising is a Policy
+      // decision that must stay re-derivable, so baking a separator or a
+      // lowercasing into the stored Link would make it a cache that can
+      // disagree with the settings in force (ADR-0001).
+      utm: typedUtm,
       destination,
-      utm,
       customParameters,
       attributes: intent.attributes || {},
       templateId: intent.templateId ?? null,

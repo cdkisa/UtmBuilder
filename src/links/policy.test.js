@@ -136,6 +136,14 @@ describe('validating a Link Intent', () => {
     expect(policy.validate({ utm: { campaign: 'summer' } })).toEqual([]);
   });
 
+  it('never prohibits the space character it inserts itself', () => {
+    const policy = createPolicy({ spaceChar: 'plus', prohibitedChars: '+, !' });
+
+    // 'summer+sale' is what normalising made of 'summer sale'.
+    expect(policy.validate({ utm: { campaign: 'summer+sale' } })).toEqual([]);
+    expect(policy.validate({ utm: { campaign: 'summer!' } })).toHaveLength(1);
+  });
+
   it('reports one Violation per offending field', () => {
     const policy = createPolicy({}, [
       rule({ campaign: { required: true }, source: { required: true } }),

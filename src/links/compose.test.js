@@ -216,7 +216,7 @@ describe('composing under a Workspace Policy', () => {
     ]);
   });
 
-  it('derives a stored Link through the Policy, so Rules apply on read', () => {
+  it('derives a stored Link through the Policy, so settings apply on read', () => {
     const lowercasing = createPolicy({ spaceChar: 'underscore', forceLowercase: true });
 
     expect(taggedUrlOf({ url: 'example.com', campaign: 'Summer Sale' }, lowercasing)).toBe(

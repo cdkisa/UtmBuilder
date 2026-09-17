@@ -25,19 +25,20 @@ function listOf(raw) {
   if (raw === undefined || raw === null) return [];
   return String(raw)
     .split(',')
-    .map(entry => entry.trim())
+    .map(part => part.trim())
     .filter(Boolean);
 }
 
 /**
- * Folds every Rule into one constraint per UTM field, most restrictive winning
- * (ADR-0004). The workspace's own settings are the floor each field starts at,
+ * Folds every Rule into what is in force for each UTM field, most restrictive
+ * winning (ADR-0004). The workspace's own settings are the floor each field
+ * starts at,
  * so adding a Rule can only ever tighten what is allowed.
  */
-function mergeConstraints(settings, rules) {
-  const merged = {};
+function mergeRules(settings, rules) {
+  const byField = {};
   for (const field of UTM_FIELDS) {
-    merged[field] = {
+    byField[field] = {
       required: false,
       blocked: false,
       forceLowercase: Boolean(settings.forceLowercase),
@@ -46,29 +47,29 @@ function mergeConstraints(settings, rules) {
     };
   }
 
-  for (const entry of rules) {
+  for (const rule of rules) {
     for (const field of UTM_FIELDS) {
-      const config = entry?.config?.[field];
+      const config = rule?.config?.[field];
       if (!config) continue;
 
-      const constraint = merged[field];
-      if (config.forceLowercase) constraint.forceLowercase = true;
-      if (config.required) constraint.required = true;
-      if (config.blocked) constraint.blocked = true;
+      const inForce = byField[field];
+      if (config.forceLowercase) inForce.forceLowercase = true;
+      if (config.required) inForce.required = true;
+      if (config.blocked) inForce.blocked = true;
 
       const maxChars = maxCharsOf(config.maxChars);
       if (maxChars !== null) {
-        constraint.maxChars =
-          constraint.maxChars === null ? maxChars : Math.min(constraint.maxChars, maxChars);
+        inForce.maxChars =
+          inForce.maxChars === null ? maxChars : Math.min(inForce.maxChars, maxChars);
       }
 
       for (const prohibited of listOf(config.prohibitedValues)) {
-        constraint.prohibitedValues.add(prohibited.toLowerCase());
+        inForce.prohibitedValues.add(prohibited.toLowerCase());
       }
     }
   }
 
-  return merged;
+  return byField;
 }
 
 /**
@@ -79,8 +80,11 @@ function mergeConstraints(settings, rules) {
  */
 export function createPolicy(settings = {}, rules = []) {
   const separator = SEPARATORS[settings.spaceChar] || '-';
-  const prohibitedChars = listOf(settings.prohibitedChars);
-  const constraints = mergeConstraints(settings, rules);
+  const rulesByField = mergeRules(settings, rules);
+
+  // Normalising inserts the separator, so a workspace cannot prohibit the very
+  // character it chose to stand in for spaces.
+  const prohibitedChars = listOf(settings.prohibitedChars).filter(char => char !== separator);
 
   return {
     normalize(utm) {
@@ -90,7 +94,7 @@ export function createPolicy(settings = {}, rules = []) {
         if (value === undefined || value === null) continue;
 
         let result = String(value).replace(/\s+/g, separator);
-        if (constraints[field].forceLowercase) result = result.toLowerCase();
+        if (rulesByField[field].forceLowercase) result = result.toLowerCase();
         normalised[field] = result;
       }
       return normalised;
@@ -100,19 +104,19 @@ export function createPolicy(settings = {}, rules = []) {
       const violations = [];
 
       for (const field of UTM_FIELDS) {
-        const constraint = constraints[field];
+        const inForce = rulesByField[field];
         const value = utm[field] == null ? '' : String(utm[field]);
 
         // A field both required and blocked is unsatisfiable; blocked wins, on
         // the same most-restrictive reading that merges the Rules (ADR-0004).
-        if (constraint.blocked) {
+        if (inForce.blocked) {
           if (value) {
             violations.push({ field, message: `${LABELS[field]} may not be used.` });
           }
           continue;
         }
 
-        if (constraint.required && !value) {
+        if (inForce.required && !value) {
           violations.push({ field, message: `${LABELS[field]} is required.` });
           continue;
         }
@@ -128,15 +132,15 @@ export function createPolicy(settings = {}, rules = []) {
           continue;
         }
 
-        if (constraint.maxChars !== null && value.length > constraint.maxChars) {
+        if (inForce.maxChars !== null && value.length > inForce.maxChars) {
           violations.push({
             field,
-            message: `${LABELS[field]} must be ${constraint.maxChars} characters or fewer.`,
+            message: `${LABELS[field]} must be ${inForce.maxChars} characters or fewer.`,
           });
           continue;
         }
 
-        if (constraint.prohibitedValues.has(value.toLowerCase())) {
+        if (inForce.prohibitedValues.has(value.toLowerCase())) {
           violations.push({ field, message: `${LABELS[field]} may not be "${value}".` });
         }
       }

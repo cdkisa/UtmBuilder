@@ -25,10 +25,10 @@ Two defects follow from the copy:
 
 `deps` gains `templates`: a function from Template id to a Template record, or `undefined` when there is no such Template. It is the same adapter pattern as the existing `deps.generateCode`, so composition stays synchronous and free of Dexie.
 
-A private `resolveUtm(intent, deps)` returns either `{ utm }` or `{ violation }`:
+A private `resolveUtm(intent, deps)` returns `{ utm }`, plus a `violation` when the Template is unknown. `utm` is always present, so `composeTaggedUrl` can still tag from the Intent's own values:
 
 - no `intent.templateId` → the Intent's `utm`, unchanged;
-- `templateId` present, `deps.templates` absent or returning `undefined` → the unknown-Template Violation;
+- `templateId` present, `deps.templates` absent or returning `undefined` → the Intent's `utm` together with the unknown-Template Violation;
 - otherwise, for each of the five UTM fields, the Intent's value if typed, else the Template's value if it has one, else absent.
 
 Both entry points use it:

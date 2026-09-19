@@ -4,6 +4,7 @@ import { useToast } from '../hooks/useToast';
 import { Button, EmptyState, Input, Checkbox } from '../components/UI';
 import Modal from '../components/Modal';
 import { exportToCsv } from '../utils/utm';
+import { deleteAttribute } from '../links';
 import db from '../db';
 
 export default function AttributesPage() {
@@ -24,8 +25,7 @@ export default function AttributesPage() {
   const handleDelete = async (id) => {
     setMenuOpenId(null);
     if (!confirm('Delete this attribute?')) return;
-    await db.attributes.delete(id);
-    await db.linkAttributes.where('attributeId').equals(id).delete();
+    await deleteAttribute(id);
     toast('Attribute deleted');
   };
 

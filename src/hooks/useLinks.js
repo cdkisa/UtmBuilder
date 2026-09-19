@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useWorkspace } from './useWorkspace';
-import { taggedUrlOf, createPolicy } from '../links';
+import { taggedUrlOf, createPolicy, listCustomParams } from '../links';
 import db from '../db';
 
 /** Who the app is acting as. Every Link Intent must name an author. */
@@ -28,7 +28,7 @@ export function useLinkPolicy() {
  */
 export function useTaggedUrl() {
   const policy = useLinkPolicy();
-  const customParamRows = useLiveQuery(() => db.linkCustomParams.toArray(), []) || [];
+  const customParamRows = useLiveQuery(listCustomParams, []) || [];
 
   const paramsByLink = useMemo(() => {
     const byLink = new Map();

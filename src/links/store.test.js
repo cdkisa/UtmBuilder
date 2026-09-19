@@ -8,6 +8,11 @@ import {
   saveLinks,
   cloneLink,
   deleteLink,
+  deleteAttribute,
+  listCustomParams,
+  listQrLinks,
+  attachQrCode,
+  listLinks,
   taggedUrlOf,
 } from './index.js';
 
@@ -170,5 +175,107 @@ describe('cloneLink', () => {
 
     expect(await db.linkCustomParams.where('linkId').equals(copy).count()).toBe(1);
     expect(await db.linkAttributes.where('linkId').equals(copy).count()).toBe(1);
+  });
+});
+
+describe('listLinks', () => {
+  it('lists every Link, newest first', async () => {
+    const first = await saveLink(draftFor({ destination: 'one.test' }));
+    const second = await saveLink(draftFor({ destination: 'two.test' }));
+    const third = await saveLink(draftFor({ destination: 'three.test' }));
+
+    expect((await listLinks()).map(l => l.id)).toEqual([third, second, first]);
+  });
+});
+
+describe('attachQrCode', () => {
+  it('marks the Link as carrying a QR code and stores the image and design', async () => {
+    const id = await saveLink(draftFor({}));
+
+    await attachQrCode(id, { qrDataUrl: 'data:image/png;base64,abc', qrDesignId: 3 });
+
+    const link = await db.links.get(id);
+    expect(link.qrCode).toBe(true);
+    expect(link.qrDataUrl).toBe('data:image/png;base64,abc');
+    expect(link.qrDesignId).toBe(3);
+  });
+
+  it('records no design when none was chosen', async () => {
+    const id = await saveLink(draftFor({}));
+
+    await attachQrCode(id, { qrDataUrl: 'data:image/png;base64,abc' });
+
+    expect((await db.links.get(id)).qrDesignId).toBeNull();
+  });
+});
+
+describe('listQrLinks', () => {
+  it('lists only the Links carrying a QR code', async () => {
+    const plain = await saveLink(draftFor({ destination: 'plain.test' }));
+    const tagged = await saveLink(draftFor({ destination: 'tagged.test' }));
+    await attachQrCode(tagged, { qrDataUrl: 'data:image/png;base64,abc' });
+
+    const listed = await listQrLinks();
+
+    expect(listed.map(l => l.id)).toEqual([tagged]);
+    expect(listed.map(l => l.id)).not.toContain(plain);
+  });
+});
+
+describe('saveLink with a QR code', () => {
+  it('writes the QR code onto the row it creates', async () => {
+    const id = await saveLink(draftFor({}), {
+      qrDataUrl: 'data:image/png;base64,abc',
+      qrDesignId: 5,
+    });
+
+    const link = await db.links.get(id);
+    expect(link.qrCode).toBe(true);
+    expect(link.qrDataUrl).toBe('data:image/png;base64,abc');
+    expect(link.qrDesignId).toBe(5);
+  });
+
+  it('leaves a Link saved without one carrying no QR fields', async () => {
+    const id = await saveLink(draftFor({}));
+
+    const link = await db.links.get(id);
+    expect(link.qrCode).toBeUndefined();
+    expect(link.qrDataUrl).toBeUndefined();
+  });
+});
+
+describe('listCustomParams', () => {
+  it('lists the Custom Parameter rows of every Link', async () => {
+    const first = await saveLink(
+      draftFor({ destination: 'one.test', customParameters: [{ name: 'ref', value: 'a' }] }),
+    );
+    const second = await saveLink(
+      draftFor({ destination: 'two.test', customParameters: [{ name: 'ref', value: 'b' }] }),
+    );
+
+    const rows = await listCustomParams();
+
+    expect(rows.map(r => [r.linkId, r.paramValue]).sort()).toEqual([
+      [first, 'a'],
+      [second, 'b'],
+    ]);
+  });
+});
+
+describe('deleteAttribute', () => {
+  it('deletes the Attribute and every value Links held for it', async () => {
+    const doomed = await db.attributes.add({ fieldName: 'Region', fieldType: 'Freeform' });
+    const kept = await db.attributes.add({ fieldName: 'Quarter', fieldType: 'Freeform' });
+    const link = await saveLink(draftFor({ attributes: { [doomed]: 'north', [kept]: 'q3' } }));
+
+    await deleteAttribute(doomed);
+
+    expect(await db.attributes.get(doomed)).toBeUndefined();
+    expect(await db.linkAttributes.where('attributeId').equals(doomed).count()).toBe(0);
+
+    // The Link itself survives, holding the Attributes that were not deleted.
+    expect(await db.links.get(link)).toBeDefined();
+    const left = await db.linkAttributes.where('linkId').equals(link).toArray();
+    expect(left.map(a => [a.attributeId, a.value])).toEqual([[kept, 'q3']]);
   });
 });

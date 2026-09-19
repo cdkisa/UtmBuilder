@@ -37,8 +37,17 @@ function attributeRowsFor(linkId, attributes) {
   return rows;
 }
 
-async function insert(draft) {
-  const linkId = await db.links.add(rowFor(draft));
+/**
+ * The QR columns a Link carries once a code has been generated for it. Saving
+ * a Link with a code is one write, not a save followed by an update.
+ */
+function qrFieldsFor(qr) {
+  if (!qr) return {};
+  return { qrCode: true, qrDataUrl: qr.qrDataUrl, qrDesignId: qr.qrDesignId ?? null };
+}
+
+async function insert(draft, qr) {
+  const linkId = await db.links.add({ ...rowFor(draft), ...qrFieldsFor(qr) });
 
   const customParams = draft.customParameters.map(p => ({
     linkId,
@@ -53,9 +62,13 @@ async function insert(draft) {
   return linkId;
 }
 
-/** Saves one Link Draft and its children in a single transaction. */
-export function saveLink(draft) {
-  return db.transaction('rw', LINK_TABLES(), () => insert(draft));
+/**
+ * Saves one Link Draft and its children in a single transaction. A generated
+ * QR code may be handed over with it, so the Link is never briefly saved
+ * without the code it was created for.
+ */
+export function saveLink(draft, qr) {
+  return db.transaction('rw', LINK_TABLES(), () => insert(draft, qr));
 }
 
 /**
@@ -111,5 +124,48 @@ export function cloneLink(linkId, author) {
     }
 
     return copyId;
+  });
+}
+
+/** Every Link, newest first. */
+export function listLinks() {
+  return db.links.reverse().toArray();
+}
+
+/**
+ * Records a generated QR code against a Link. The image is stored because the
+ * QR page lists codes without regenerating them; the Tagged URL behind it is
+ * still derived on read (ADR-0001).
+ */
+export function attachQrCode(linkId, qr) {
+  return db.links.update(linkId, qrFieldsFor(qr));
+}
+
+/**
+ * Every Link carrying a QR code. `qrCode` is not indexed, so this scans the
+ * table; behind this name it is one place to fix if it ever needs an index.
+ */
+export function listQrLinks() {
+  return db.links.filter(link => Boolean(link.qrCode)).toArray();
+}
+
+/**
+ * Every Custom Parameter row in the workspace. Deriving a Tagged URL needs the
+ * rows of whichever Links are on screen, and Dexie has no cheaper way to load
+ * them for a whole list than reading the child table.
+ */
+export function listCustomParams() {
+  return db.linkCustomParams.toArray();
+}
+
+/**
+ * Deletes an Attribute definition together with every value Links held for it,
+ * in one transaction: an Attribute that no longer exists must not leave rows
+ * behind that nothing can name (ADR-0006).
+ */
+export function deleteAttribute(attributeId) {
+  return db.transaction('rw', [db.attributes, db.linkAttributes], async () => {
+    await db.linkAttributes.where('attributeId').equals(attributeId).delete();
+    await db.attributes.delete(attributeId);
   });
 }

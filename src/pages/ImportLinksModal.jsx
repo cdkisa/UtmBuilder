@@ -3,8 +3,12 @@ import Modal from '../components/Modal';
 import { Button } from '../components/UI';
 import { useToast } from '../hooks/useToast';
 import { useLinkPolicy } from '../hooks/useLinks';
-import { parseCsvText } from '../utils/utm';
-import { composeLink, saveLinks } from '../links';
+import { csvToDrafts, saveLinks } from '../links';
+import { downloadCsv } from '../utils/csv';
+
+const IMPORT_TEMPLATE =
+  'full_url,short_url,utm_source,utm_campaign,utm_medium,utm_term,utm_content,notes\n' +
+  'https://example.com,,google,summer-sale,cpc,brand,hero-banner,Example link';
 
 export default function ImportLinksModal({ open, onClose }) {
 
@@ -18,47 +22,11 @@ export default function ImportLinksModal({ open, onClose }) {
 
   const handleImport = async () => {
     if (!file) { toast('Choose a CSV file first', 'error'); return; }
-    const text = await file.text();
-    const rows = parseCsvText(text);
-    if (rows.length === 0) { toast('No rows found in CSV', 'error'); return; }
-
-    const drafts = [];
-    const skipped = [];
-
-    for (const [index, row] of rows.entries()) {
-      // A row's own UTM columns win over anything already on the URL (ADR-0002).
-      const destination = row.full_url || row.url || row.URL || '';
-      if (!destination) continue;
-
-      const result = composeLink(
-        {
-          destination,
-          utm: {
-            campaign: row.utm_campaign || row.campaign || '',
-            medium: row.utm_medium || row.medium || '',
-            source: row.utm_source || row.source || '',
-            term: row.utm_term || row.term || '',
-            content: row.utm_content || row.content || '',
-          },
-          customParameters: [],
-          attributes: {},
-          templateId: null,
-          shortener: null,
-          notes: row.notes || '',
-          author: 'Import',
-        },
-        policy,
-      );
-
-      if (!result.ok) {
-        skipped.push(index + 2);
-        continue;
-      }
-
-      drafts.push({ ...result.draft, shortUrl: row.short_url || '' });
+    const { drafts, skipped } = csvToDrafts(await file.text(), policy);
+    if (drafts.length === 0) {
+      toast(skipped.length === 0 ? 'No rows found in CSV' : 'No importable rows found', 'error');
+      return;
     }
-
-    if (drafts.length === 0) { toast('No importable rows found', 'error'); return; }
 
     await saveLinks(drafts);
 
@@ -94,14 +62,7 @@ export default function ImportLinksModal({ open, onClose }) {
 
       <div className="flex items-center gap-3">
         <Button onClick={handleImport} disabled={!file}>Continue</Button>
-        <button onClick={() => {
-          const tpl = 'full_url,short_url,utm_source,utm_campaign,utm_medium,utm_term,utm_content,notes\nhttps://example.com,,google,summer-sale,cpc,brand,hero-banner,Example link';
-          const blob = new Blob([tpl], { type: 'text/csv' });
-          const link = document.createElement('a');
-          link.href = URL.createObjectURL(blob);
-          link.download = 'utm-import-template.csv';
-          link.click();
-        }} className="text-sm text-blue-600 hover:text-blue-700">
+        <button onClick={() => downloadCsv(IMPORT_TEMPLATE, 'utm-import-template.csv')} className="text-sm text-blue-600 hover:text-blue-700">
           Download a template for CSV import file
         </button>
       </div>

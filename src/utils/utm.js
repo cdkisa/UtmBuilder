@@ -1,43 +1,5 @@
-// URL composition moved to src/links/ (see CONTEXT.md and docs/adr/0001).
-// What remains here is generic: CSV, clipboard and date formatting.
-
-export function exportToCsv(data, filename) {
-  if (!data.length) return;
-  const headers = Object.keys(data[0]);
-  const rows = data.map(row => headers.map(h => {
-    const val = String(row[h] ?? '');
-    return val.includes(',') || val.includes('"') || val.includes('\n')
-      ? `"${val.replace(/"/g, '""')}"`
-      : val;
-  }).join(','));
-  const csv = [headers.join(','), ...rows].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(link.href);
-}
-
-export function parseCsvText(text) {
-  const lines = text.split('\n').filter(l => l.trim());
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-  return lines.slice(1).map(line => {
-    const vals = [];
-    let current = '';
-    let inQuotes = false;
-    for (const char of line) {
-      if (char === '"') { inQuotes = !inQuotes; }
-      else if (char === ',' && !inQuotes) { vals.push(current.trim()); current = ''; }
-      else { current += char; }
-    }
-    vals.push(current.trim());
-    const obj = {};
-    headers.forEach((h, i) => { obj[h] = vals[i] || ''; });
-    return obj;
-  });
-}
+// URL composition lives in src/links/ (see CONTEXT.md and docs/adr/0001), and
+// CSV in src/utils/csv.js. What remains here: clipboard and date formatting.
 
 export async function copyToClipboard(text) {
   try {

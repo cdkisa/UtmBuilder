@@ -348,4 +348,27 @@ test.describe('Links Page', () => {
     await expect(page.locator(modal)).toContainText('Migrate your short URLs');
     await expect(page.locator(modal)).toContainText('Download a template for CSV import file');
   });
+
+  test('re-imports its own export with the note intact', async ({ page }) => {
+    const note = 'first, "second"';
+    await page.locator('button:has-text("CREATE LINK")').click();
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://round-trip.test');
+    await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('rt-campaign');
+    await page.locator(`${modal} input[placeholder*="Notes are saved"]`).fill(note);
+    await page.locator(`${modal} button:has-text("Copy & Save")`).click();
+    await expect(page.getByRole('cell', { name: note, exact: true })).toHaveCount(1);
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.locator('button:has-text("Export to CSV")').click(),
+    ]);
+    const file = await download.path();
+
+    await page.locator('button:has-text("Import Links via CSV")').click();
+    await page.locator(`${modal} input[type="file"]`).setInputFiles(file);
+    await page.locator(`${modal} button:has-text("Continue")`).click();
+    await expect(page.locator('text=Imported 1 links')).toBeVisible();
+
+    await expect(page.getByRole('cell', { name: note, exact: true })).toHaveCount(2);
+  });
 });

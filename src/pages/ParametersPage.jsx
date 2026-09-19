@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useToast } from '../hooks/useToast';
 import { Button, EmptyState, Input, Select, Checkbox } from '../components/UI';
 import Modal from '../components/Modal';
-import { exportToCsv } from '../utils/utm';
+import { exportToCsv } from '../utils/csv';
 import db from '../db';
 
 const CATEGORIES = ['campaign', 'medium', 'source', 'term', 'content'];

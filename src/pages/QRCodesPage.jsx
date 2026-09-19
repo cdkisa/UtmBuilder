@@ -4,8 +4,9 @@ import { useToast } from '../hooks/useToast';
 import { useLinkPolicy, useTaggedUrl, useCurrentAuthor, useTemplateLookup } from '../hooks/useLinks';
 import { Button, EmptyState, ComboInput, Input, Select, Checkbox } from '../components/UI';
 import Modal from '../components/Modal';
-import { formatDate, exportToCsv, copyToClipboard } from '../utils/utm';
-import { composeLink, composeTaggedUrl, saveLink, listLinks, listQrLinks, attachQrCode } from '../links';
+import { formatDate, copyToClipboard } from '../utils/utm';
+import { downloadCsv } from '../utils/csv';
+import { composeLink, composeTaggedUrl, saveLink, listLinks, listQrLinks, attachQrCode, linksToCsv } from '../links';
 import db from '../db';
 import QRCode from 'qrcode';
 import QRCodeStyling from 'qr-code-styling';
@@ -27,11 +28,7 @@ export default function QRCodesPage() {
   );
 
   const handleExport = () => {
-    const data = filtered.map(l => ({
-      created_by: l.createdBy, created_at: l.createdAt, url: l.url,
-      campaign: l.campaign, medium: l.medium, source: l.source,
-    }));
-    exportToCsv(data, `utm-qrcodes-${Date.now()}.csv`);
+    downloadCsv(linksToCsv(filtered, taggedUrl), `utm-qrcodes-${Date.now()}.csv`);
     toast('Exported');
   };
 

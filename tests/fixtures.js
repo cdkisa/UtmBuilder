@@ -3,8 +3,9 @@ import { test as base, expect } from '@playwright/test';
 /**
  * Saving a Link verifies its Destination with a real HEAD request, and a
  * request that hangs past its timeout asks the user to confirm, which
- * Playwright dismisses. Left alone, whether a spec passes depended on how some
- * stranger's server answered from this machine that day. Every off-origin HEAD
+ * Playwright dismisses. The specs' made-up Destinations are mostly registered
+ * domains whose addresses accept no connection, so left alone, whether a spec
+ * passed depended on what happened to sit at those names. Every off-origin HEAD
  * is answered here instead, on the context so pages a spec opens itself are
  * covered too; other requests go out as normal.
  */

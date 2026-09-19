@@ -55,7 +55,10 @@ export default function CreateLinkModal({ open, onClose, mode: initialMode = 'si
   // A chosen Template's values show as placeholders rather than being copied
   // in; composing applies them beneath whatever is typed (ADR-0007).
   const chosenTemplate = templateId ? findTemplate(templateId) : undefined;
-  const hintFor = (field, fallback) => chosenTemplate?.[field] || fallback;
+  const hintFor = (field, fallback) => {
+    const value = chosenTemplate?.[field];
+    return value != null && String(value).trim() !== '' ? value : fallback;
+  };
 
   // 'local' is the built-in offline Shortener; every other option is a
   // configured Shortener, whose own domain is the one that must be used.
@@ -112,6 +115,11 @@ export default function CreateLinkModal({ open, onClose, mode: initialMode = 'si
     setIsVerifying(true);
     if (mode === 'email') {
       if (!emailHtml.trim()) { toast('Enter HTML email code', 'error'); setIsVerifying(false); return; }
+      if (templateId && !findTemplate(templateId)) {
+        toast('The chosen Template no longer exists.', 'error');
+        setIsVerifying(false);
+        return;
+      }
       const newHtml = emailHtml.replace(/(href=["'])(https?:\/\/[^"']+)/g, (match, prefix, matchUrl) => {
         return prefix + composeTaggedUrl(matchUrl, buildIntent(), policy, composeDeps);
       });

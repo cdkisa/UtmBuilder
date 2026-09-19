@@ -85,8 +85,9 @@ export function taggedUrlOf(link, policy, customParameterRows = []) {
  */
 export function composeTaggedUrl(destination, intent, policy, deps = {}) {
   const cleaned = stripExistingUtm(withScheme(destination));
-  // An unknown Template has nowhere to be reported here; composeLink reports
-  // it when the Link is saved, so the preview uses the typed values alone.
+  // An unknown Template has nowhere to be reported here, so this tags with
+  // the typed values alone. Callers that save a Link report it through
+  // composeLink; a caller that saves nothing must check for it itself.
   const utm = policy.normalize(resolveUtm(intent, deps).utm);
   const customParameters = (intent.customParameters || []).filter(p => p.name && p.value);
 

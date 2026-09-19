@@ -34,7 +34,7 @@ A private `resolveUtm(intent, deps)` returns `{ utm }`, plus a `violation` when 
 Both entry points use it:
 
 - `composeLink(intent, policy, deps)` — the resolved `utm` replaces `typedUtm` everywhere it is used today: it is normalised, validated by the Policy, tagged, and returned as `draft.utm`. The Policy therefore validates resolved values, so a Template cannot carry a prohibited value past a Rule.
-- `composeTaggedUrl(destination, intent, policy, deps)` — gains the same fourth argument, so the live preview and the HTML email path match what is saved. On an unknown Template it tags with the Intent's own values only; it has no Violation channel, and `composeLink` reports the problem on save.
+- `composeTaggedUrl(destination, intent, policy, deps)` — gains the same fourth argument, so the live preview and the HTML email path match what is saved. On an unknown Template it tags with the Intent's own values only; it has no Violation channel. `composeLink` reports the problem on save, and the HTML email path, which saves nothing, checks for it before rewriting and shows the same message.
 
 Called without `deps.templates` and without `intent.templateId`, both functions behave exactly as today.
 

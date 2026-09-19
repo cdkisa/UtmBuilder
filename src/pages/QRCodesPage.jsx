@@ -130,7 +130,10 @@ function CreateQRModal({ open, onClose }) {
   // A chosen Template's values show as placeholders rather than being copied
   // in; composing applies them beneath whatever is typed (ADR-0007).
   const chosenTemplate = templateId ? findTemplate(templateId) : undefined;
-  const hintFor = (field, fallback) => chosenTemplate?.[field] || fallback;
+  const hintFor = (field, fallback) => {
+    const value = chosenTemplate?.[field];
+    return value != null && String(value).trim() !== '' ? value : fallback;
+  };
 
   const existingLinks = useLiveQuery(listLinks, []) || [];
 

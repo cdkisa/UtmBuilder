@@ -334,3 +334,30 @@ describe('composing from a Template', () => {
     expect(result.draft.taggedUrl).toBe('https://example.com?utm_campaign=summer');
   });
 });
+
+describe('composeTaggedUrl with a Template', () => {
+  const templates = id =>
+    id === 4 ? { id: 4, campaign: 'spring-2026', medium: 'email', source: '' } : undefined;
+
+  it('tags with the Template underneath the typed values, as composeLink does', () => {
+    const url = composeTaggedUrl(
+      'example.com',
+      { templateId: 4, utm: { medium: 'newsletter' } },
+      policy,
+      { templates },
+    );
+
+    expect(url).toBe('https://example.com?utm_campaign=spring-2026&utm_medium=newsletter');
+  });
+
+  it('tags with the typed values alone when the Template no longer exists', () => {
+    const url = composeTaggedUrl(
+      'example.com',
+      { templateId: 99, utm: { medium: 'newsletter' } },
+      policy,
+      { templates },
+    );
+
+    expect(url).toBe('https://example.com?utm_medium=newsletter');
+  });
+});

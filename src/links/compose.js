@@ -83,9 +83,11 @@ export function taggedUrlOf(link, policy, customParameterRows = []) {
  * Tags a single Destination using a Link Intent's values, without producing a
  * Link. The HTML email path uses this to rewrite every href in a document.
  */
-export function composeTaggedUrl(destination, intent, policy) {
+export function composeTaggedUrl(destination, intent, policy, deps = {}) {
   const cleaned = stripExistingUtm(withScheme(destination));
-  const utm = policy.normalize(intent.utm || {});
+  // An unknown Template has nowhere to be reported here; composeLink reports
+  // it when the Link is saved, so the preview uses the typed values alone.
+  const utm = policy.normalize(resolveUtm(intent, deps).utm);
   const customParameters = (intent.customParameters || []).filter(p => p.name && p.value);
 
   return taggedUrlFor(cleaned, utm, customParameters);

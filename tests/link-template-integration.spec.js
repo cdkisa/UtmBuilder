@@ -32,9 +32,10 @@ test.describe('Link + Template Integration', () => {
     await page.locator(`${modal} select`).first().selectOption({ label: 'Email Template' });
     await page.waitForTimeout(500);
 
-    // Fields should be auto-populated
-    const campaignInput = page.locator(`${modal} input[placeholder*="holiday special"]`);
-    await expect(campaignInput).toHaveValue('email-blast');
+    // The Template's values show as placeholders; nothing is copied into the field
+    const campaignInput = page.locator(`${modal} input[list="list-campaign"]`);
+    await expect(campaignInput).toHaveValue('');
+    await expect(campaignInput).toHaveAttribute('placeholder', 'email-blast');
 
     const preview = page.locator(`${modal} .font-mono`);
     await expect(preview).toContainText('utm_campaign=email-blast');
@@ -65,12 +66,18 @@ test.describe('Link + Template Integration', () => {
     await page.locator(`${modal} select`).first().selectOption({ label: 'Clearable Template' });
     await page.waitForTimeout(500);
 
+    const preview = page.locator(`${modal} .font-mono`);
+    await expect(preview).toContainText('utm_campaign=clear-test');
+
     // Clear button should appear and work
     await expect(page.locator(`${modal} button:has-text("CLEAR")`)).toBeVisible();
     await page.locator(`${modal} button:has-text("CLEAR")`).click();
 
     const templateSelect = page.locator(`${modal} select`).first();
     await expect(templateSelect).toHaveValue('');
+
+    // Clearing the Template takes its values with it
+    await expect(preview).not.toContainText('utm_campaign=clear-test');
   });
 
   test('URL preview updates in real-time', async ({ page }) => {

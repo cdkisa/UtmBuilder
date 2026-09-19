@@ -47,23 +47,15 @@ export default function CreateLinkModal({ open, onClose, mode: initialMode = 'si
     setMode(initialMode);
   }, [initialMode]);
 
-  useEffect(() => {
-    if (templateId) {
-      const tmpl = templates.find(t => t.id === Number(templateId));
-      if (tmpl) {
-        if (tmpl.campaign) setCampaign(tmpl.campaign);
-        if (tmpl.medium) setMedium(tmpl.medium);
-        if (tmpl.source) setSource(tmpl.source);
-        if (tmpl.term) setTerm(tmpl.term);
-        if (tmpl.content) setContent(tmpl.content);
-      }
-    }
-  }, [templateId, templates]);
-
   const author = useCurrentAuthor();
   const policy = useLinkPolicy();
   const findTemplate = useTemplateLookup();
   const composeDeps = { templates: findTemplate };
+
+  // A chosen Template's values show as placeholders rather than being copied
+  // in; composing applies them beneath whatever is typed (ADR-0007).
+  const chosenTemplate = templateId ? findTemplate(templateId) : undefined;
+  const hintFor = (field, fallback) => chosenTemplate?.[field] || fallback;
 
   // 'local' is the built-in offline Shortener; every other option is a
   // configured Shortener, whose own domain is the one that must be used.
@@ -238,15 +230,15 @@ export default function CreateLinkModal({ open, onClose, mode: initialMode = 'si
 
       {/* UTM Params */}
       <ComboInput label="campaign" value={campaign} onChange={setCampaign}
-        options={campaignOpts} placeholder="e.g. holiday special, birthday promotion" className="mb-3" />
+        options={campaignOpts} placeholder={hintFor('campaign', 'e.g. holiday special, birthday promotion')} className="mb-3" />
       <ComboInput label="medium" value={medium} onChange={setMedium}
-        options={mediumOpts} placeholder="e.g. banner ad, email, social post" className="mb-3" />
+        options={mediumOpts} placeholder={hintFor('medium', 'e.g. banner ad, email, social post')} className="mb-3" />
       <ComboInput label="source" value={source} onChange={setSource}
-        options={sourceOpts} placeholder="e.g. adwords, google, mailchimp" className="mb-3" />
+        options={sourceOpts} placeholder={hintFor('source', 'e.g. adwords, google, mailchimp')} className="mb-3" />
       <ComboInput label="term" value={term} onChange={setTerm}
-        options={termOpts} placeholder="Use to identify ppc keywords" className="mb-3" />
+        options={termOpts} placeholder={hintFor('term', 'Use to identify ppc keywords')} className="mb-3" />
       <ComboInput label="content" value={content} onChange={setContent}
-        options={contentOpts} placeholder="Use to differentiate ads or words on a page" className="mb-3" />
+        options={contentOpts} placeholder={hintFor('content', 'Use to differentiate ads or words on a page')} className="mb-3" />
 
       {/* Custom URL params */}
       <button onClick={addCustomParam} className="text-xs text-brand-600 font-semibold mb-3 hover:text-brand-700">

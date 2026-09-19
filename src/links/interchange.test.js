@@ -76,7 +76,7 @@ describe('csvToDrafts', () => {
     expect(drafts[0].taggedUrl).toBe('https://a.test?utm_campaign=x&utm_source=y');
   });
 
-  it('skips a row with no URL, numbering rows as a spreadsheet does', () => {
+  it('skips a row with no URL, numbering records after the header from 2', () => {
     const { drafts, skipped } = csvToDrafts(
       'url,notes\na.test,"two\nlines"\n,orphan\nb.test,ok',
       policy,
@@ -118,12 +118,14 @@ describe('a round-trip through CSV (ADR-0008)', () => {
         notes: 'line one\nline two, with "quotes"',
       }),
       link({ id: 2, url: 'https://b.test/path?page=1', campaign: 'x', term: 't' }),
+      link({ id: 4, url: 'https://d.test', campaign: 'summer ', medium: ' email', notes: 'hi ' }),
     ];
     const taggedUrl = l => taggedUrlOf(l, policy);
 
     const { drafts, skipped } = csvToDrafts(linksToCsv(links, taggedUrl), policy);
 
     expect(skipped).toEqual([]);
+    expect(drafts).toHaveLength(links.length);
     drafts.forEach((draft, i) => {
       expect(draft.taggedUrl).toBe(taggedUrl(links[i]));
       expect(draft.shortUrl).toBe(links[i].shortUrl);

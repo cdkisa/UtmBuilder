@@ -21,6 +21,10 @@ describe('toCsv', () => {
   it('writes nothing for no rows', () => {
     expect(toCsv([])).toBe('');
   });
+
+  it('quotes a value with leading or trailing whitespace', () => {
+    expect(toCsv([{ v: ' x' }, { v: 'y ' }])).toBe('v\n" x"\n"y "');
+  });
 });
 
 describe('parseCsv', () => {
@@ -88,6 +92,7 @@ describe('parseCsv', () => {
       { v: 'line one\nline two' },
       { v: 'all, "three"\nat once' },
       { v: 'plain' },
+      { v: ' padded ' },
     ];
 
     expect(parseCsv(toCsv(rows))).toEqual(rows);

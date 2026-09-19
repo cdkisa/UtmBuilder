@@ -46,8 +46,8 @@ function firstOf(record, ...columns) {
 /**
  * Reads CSV text as Link Drafts, composing each row under the Policy. A row's
  * own UTM columns win over any already on its URL (ADR-0002). Rows that cannot
- * become a Draft are reported by spreadsheet row number, the header being
- * row 1.
+ * become a Draft are reported by record number, the header being record 1,
+ * with blank lines not counted.
  */
 export function csvToDrafts(text, policy) {
   const drafts = [];

@@ -5,7 +5,8 @@
  */
 
 const BOM = String.fromCharCode(0xfeff);
-const NEEDS_QUOTES = /[",\n\r]/;
+// Surrounding whitespace is quoted too: parseCsv trims unquoted values.
+const NEEDS_QUOTES = /[",\n\r]|^\s|\s$/;
 
 function encode(value) {
   const text = value == null ? '' : String(value);

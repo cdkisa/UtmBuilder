@@ -2,7 +2,7 @@
 
 Exporting Links to CSV and importing the file gives back Links with the same Tagged URL, Short URL, UTM values and notes. It does not give back the whole Link: a Custom Parameter returns folded into the Destination rather than as a Custom Parameter, and Attributes are not exported at all.
 
-The export writes a Tagged URL and the UTM values in separate columns, and import rebuilds each Link from those (ADR-0002). A Custom Parameter only survives inside the Tagged URL, so the imported Link carries it as part of its Destination. Composition adds UTM values after a Destination's existing query string, so a Link with Custom Parameters comes back with the same parameters and values in a different order: an equivalent URL, not byte-identical text. Links without Custom Parameters come back byte-identical.
+The export writes a Tagged URL and the UTM values in separate columns, and import rebuilds each Link from those (ADR-0002). A Custom Parameter only survives inside the Tagged URL, so the imported Link carries it as part of its Destination. Composition adds UTM values after a Destination's existing query string, so a Link with Custom Parameters comes back with the same parameters and values in a different order: an equivalent URL, not byte-identical text. Links without Custom Parameters come back byte-identical, provided their Destination's query is in the form composition writes. Import re-serialises a query string, so values are equal once decoded, but their percent-encoding may differ.
 
 ## Consequences
 

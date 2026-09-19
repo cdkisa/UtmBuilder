@@ -33,7 +33,7 @@ The writer and reader disagree, so the app cannot read back its own export. Veri
 
 All CSV code leaves `src/utils/utm.js`, which keeps only the clipboard and date helpers.
 
-- `toCsv(rows)`: an array of objects in, CSV text out. Headers are the first row's keys; lines are joined with `\n`. A value containing `,`, `"`, `\n` or `\r` is wrapped in `"`, with each `"` doubled. `null` and `undefined` write as empty. An empty array returns `''`.
+- `toCsv(rows)`: an array of objects in, CSV text out. Headers are the first row's keys; lines are joined with `\n`. A value containing `,`, `"`, `\n` or `\r` is wrapped in `"`, with each `"` doubled. A value with leading or trailing whitespace is quoted too, since unquoted values are trimmed on read. `null` and `undefined` write as empty. An empty array returns `''`.
 - `parseCsv(text)`: CSV text in, an array of objects keyed by header (each header trimmed) out.
   - A leading byte-order mark (U+FEFF) is removed.
   - Fields may be quoted; inside quotes, `""` is a literal `"`, and commas and line breaks are literal.
@@ -57,7 +57,7 @@ All CSV code leaves `src/utils/utm.js`, which keeps only the clipboard and date 
   - Each record is composed with `composeLink` under the given Policy: no Custom Parameters, no Attributes, no Template, no Shortener, notes from `notes`, author `'Import'`.
   - A composed Draft's `shortUrl` is replaced by the record's `short_url` (or `''`).
   - A record with no Destination is skipped with reason `'No URL'`. A record that fails composition is skipped with its first Violation's message.
-  - `row` is the record's spreadsheet row number: header row = 1, first data record = 2. A multi-line quoted value does not shift it.
+  - `row` is the record number: header = 1, first data record = 2. A multi-line quoted value counts as one record, and blank lines are not counted.
 - Both are exported from `src/links/index.js`.
 
 ### Pages

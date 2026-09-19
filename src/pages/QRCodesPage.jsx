@@ -5,7 +5,7 @@ import { useLinkPolicy, useTaggedUrl, useCurrentAuthor } from '../hooks/useLinks
 import { Button, EmptyState, ComboInput, Input, Select, Checkbox } from '../components/UI';
 import Modal from '../components/Modal';
 import { formatDate, exportToCsv, copyToClipboard } from '../utils/utm';
-import { composeLink, composeTaggedUrl, saveLink } from '../links';
+import { composeLink, composeTaggedUrl, saveLink, listLinks, listQrLinks, attachQrCode } from '../links';
 import db from '../db';
 import QRCode from 'qrcode';
 import QRCodeStyling from 'qr-code-styling';
@@ -19,10 +19,7 @@ export default function QRCodesPage() {
   const [search, setSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
-  const links = useLiveQuery(
-    () => db.links.filter(l => l.qrCode).toArray(),
-    []
-  ) || [];
+  const links = useLiveQuery(listQrLinks, []) || [];
 
 
   const filtered = links.filter(l =>
@@ -128,10 +125,7 @@ function CreateQRModal({ open, onClose }) {
   const [qrDesignId, setQrDesignId] = useState('');
   const [qrPreview, setQrPreview] = useState('');
 
-  const existingLinks = useLiveQuery(
-    () => db.links.reverse().toArray(),
-    []
-  ) || [];
+  const existingLinks = useLiveQuery(listLinks, []) || [];
 
   const templates = useLiveQuery(
     () => db.templates.toArray(),
@@ -243,8 +237,8 @@ function CreateQRModal({ open, onClose }) {
         return;
       }
 
-      await db.links.update(Number(selectedLinkId), {
-        qrCode: true, qrDataUrl, qrDesignId: qrDesignId ? Number(qrDesignId) : null,
+      await attachQrCode(Number(selectedLinkId), {
+        qrDataUrl, qrDesignId: qrDesignId ? Number(qrDesignId) : null,
       });
 
       await copyToClipboard(previewTaggedUrl);
@@ -269,9 +263,8 @@ function CreateQRModal({ open, onClose }) {
         return;
       }
 
-      const linkId = await saveLink(result.draft);
-      await db.links.update(linkId, {
-        qrCode: true, qrDataUrl, qrDesignId: qrDesignId ? Number(qrDesignId) : null,
+      await saveLink(result.draft, {
+        qrDataUrl, qrDesignId: qrDesignId ? Number(qrDesignId) : null,
       });
 
       await copyToClipboard(result.draft.taggedUrl);

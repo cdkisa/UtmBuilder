@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import Modal from '../components/Modal';
 import { Button, Input, ComboInput, Select, Checkbox } from '../components/UI';
 import { useToast } from '../hooks/useToast';
-import { useLinkPolicy, useCurrentAuthor } from '../hooks/useLinks';
+import { useLinkPolicy, useCurrentAuthor, useTemplateLookup } from '../hooks/useLinks';
 import { copyToClipboard } from '../utils/utm';
 import { composeLink, composeTaggedUrl, saveLink, saveLinks } from '../links';
 import db from '../db';
@@ -62,6 +62,8 @@ export default function CreateLinkModal({ open, onClose, mode: initialMode = 'si
 
   const author = useCurrentAuthor();
   const policy = useLinkPolicy();
+  const findTemplate = useTemplateLookup();
+  const composeDeps = { templates: findTemplate };
 
   // 'local' is the built-in offline Shortener; every other option is a
   // configured Shortener, whose own domain is the one that must be used.
@@ -84,7 +86,7 @@ export default function CreateLinkModal({ open, onClose, mode: initialMode = 'si
     author,
   });
 
-  const previewTaggedUrl = composeTaggedUrl(url, buildIntent(), policy);
+  const previewTaggedUrl = composeTaggedUrl(url, buildIntent(), policy, composeDeps);
 
   const reset = () => {
     setMode(initialMode);
@@ -108,7 +110,7 @@ export default function CreateLinkModal({ open, onClose, mode: initialMode = 'si
     }
   };
 
-  const compose = (destination) => composeLink(buildIntent(destination), policy);
+  const compose = (destination) => composeLink(buildIntent(destination), policy, composeDeps);
 
   const reportViolations = (violations) => {
     toast(violations[0]?.message || 'This link is not valid', 'error');
@@ -119,7 +121,7 @@ export default function CreateLinkModal({ open, onClose, mode: initialMode = 'si
     if (mode === 'email') {
       if (!emailHtml.trim()) { toast('Enter HTML email code', 'error'); setIsVerifying(false); return; }
       const newHtml = emailHtml.replace(/(href=["'])(https?:\/\/[^"']+)/g, (match, prefix, matchUrl) => {
-        return prefix + composeTaggedUrl(matchUrl, buildIntent(), policy);
+        return prefix + composeTaggedUrl(matchUrl, buildIntent(), policy, composeDeps);
       });
       setProcessedHtml(newHtml);
       await copyToClipboard(newHtml);

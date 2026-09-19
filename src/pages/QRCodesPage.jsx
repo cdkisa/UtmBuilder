@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useToast } from '../hooks/useToast';
-import { useLinkPolicy, useTaggedUrl, useCurrentAuthor } from '../hooks/useLinks';
+import { useLinkPolicy, useTaggedUrl, useCurrentAuthor, useTemplateLookup } from '../hooks/useLinks';
 import { Button, EmptyState, ComboInput, Input, Select, Checkbox } from '../components/UI';
 import Modal from '../components/Modal';
 import { formatDate, exportToCsv, copyToClipboard } from '../utils/utm';
@@ -107,6 +107,8 @@ export default function QRCodesPage() {
 function CreateQRModal({ open, onClose }) {
   const toast = useToast();
   const policy = useLinkPolicy();
+  const findTemplate = useTemplateLookup();
+  const composeDeps = { templates: findTemplate };
   const linkTaggedUrl = useTaggedUrl();
   const author = useCurrentAuthor();
 
@@ -181,7 +183,7 @@ function CreateQRModal({ open, onClose }) {
       })()
     : '';
   const previewTaggedUrl = mode === 'new'
-    ? composeTaggedUrl(url, buildIntent(), policy)
+    ? composeTaggedUrl(url, buildIntent(), policy, composeDeps)
     : selectedEncodedUrl;
 
   useEffect(() => {
@@ -244,7 +246,7 @@ function CreateQRModal({ open, onClose }) {
       await copyToClipboard(previewTaggedUrl);
       toast('QR Code added to existing link');
     } else {
-      const result = composeLink(buildIntent(url), policy);
+      const result = composeLink(buildIntent(url), policy, composeDeps);
       if (!result.ok) {
         toast(result.violations[0]?.message || 'This link is not valid', 'error');
         return;

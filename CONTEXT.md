@@ -52,6 +52,10 @@ _Avoid_: error, validation failure, issue
 A saved suggested value for one of the five UTM fields, offered when composing a Link. Never write bare "Parameter": it is either a Parameter Preset or a Custom Parameter.
 _Avoid_: parameter, preset value, suggestion
 
+**Template**:
+A saved set of UTM values that composing layers underneath a Link Intent's own: a field the user leaves blank takes the Template's value. A Link made from a Template keeps the values it was composed with, so editing the Template later changes no Link.
+_Avoid_: preset, default, blueprint
+
 **Shortener**:
 A configured domain that can issue Short URLs standing in for a Link's Tagged URL.
 _Avoid_: link shortener service, redirector

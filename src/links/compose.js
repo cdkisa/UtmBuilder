@@ -100,11 +100,39 @@ function shortUrlFor(shortener, generateCode) {
   return `https://${shortener.domain}/${generateCode()}`;
 }
 
+const isTyped = value => value != null && String(value).trim() !== '';
+
+/**
+ * Layers a chosen Template's UTM values under the Intent's own (ADR-0007). A
+ * field the user left blank takes the Template's value; a typed one always
+ * wins. An unknown Template is reported, never silently dropped, but the
+ * Intent's own values still come back so a preview can be drawn from them.
+ */
+function resolveUtm(intent, deps) {
+  const typed = intent.utm || {};
+  if (intent.templateId == null) return { utm: typed };
+
+  const template = deps.templates ? deps.templates(intent.templateId) : undefined;
+  if (!template) {
+    return {
+      utm: typed,
+      violation: { field: 'template', message: 'The chosen Template no longer exists.' },
+    };
+  }
+
+  const utm = {};
+  for (const [field] of UTM_FIELDS) {
+    if (isTyped(typed[field])) utm[field] = typed[field];
+    else if (isTyped(template[field])) utm[field] = template[field];
+  }
+  return { utm };
+}
+
 export function composeLink(intent, policy, deps = {}) {
   const generateCode = deps.generateCode || defaultGenerateCode;
   const destination = stripExistingUtm(withScheme(intent.destination));
-  const typedUtm = intent.utm || {};
-  const utm = policy.normalize(typedUtm);
+  const resolved = resolveUtm(intent, deps);
+  const utm = policy.normalize(resolved.utm);
   const customParameters = (intent.customParameters || []).filter(p => p.name && p.value);
 
   const violations = [];
@@ -114,6 +142,7 @@ export function composeLink(intent, policy, deps = {}) {
   if (!intent.author) {
     violations.push({ field: 'author', message: 'An author is required.' });
   }
+  if (resolved.violation) violations.push(resolved.violation);
   violations.push(...policy.validate({ ...intent, destination, utm }));
 
   if (violations.length > 0) return { ok: false, violations };
@@ -121,11 +150,11 @@ export function composeLink(intent, policy, deps = {}) {
   return {
     ok: true,
     draft: {
-      // What the user typed, not what was normalised: normalising is a Policy
-      // decision that must stay re-derivable, so baking a separator or a
-      // lowercasing into the stored Link would make it a cache that can
-      // disagree with the settings in force (ADR-0001).
-      utm: typedUtm,
+      // What the user typed, with any Template's values beneath it, and not
+      // what was normalised: normalising is a Policy decision that must stay
+      // re-derivable (ADR-0001). The Template's values are snapshotted here so
+      // editing the Template later changes no Link (ADR-0007).
+      utm: resolved.utm,
       destination,
       customParameters,
       attributes: intent.attributes || {},

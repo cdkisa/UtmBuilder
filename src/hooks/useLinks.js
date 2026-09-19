@@ -44,3 +44,17 @@ export function useTaggedUrl() {
     [policy, paramsByLink],
   );
 }
+
+/**
+ * Looks a Template up by id, for composition to resolve (ADR-0007). A page
+ * uses this same lookup to show the chosen Template's values, so what the form
+ * shows and what gets composed cannot disagree.
+ */
+export function useTemplateLookup() {
+  const templates = useLiveQuery(() => db.templates.toArray(), []) || [];
+
+  return useMemo(() => {
+    const byId = new Map(templates.map(t => [t.id, t]));
+    return id => byId.get(Number(id));
+  }, [templates]);
+}

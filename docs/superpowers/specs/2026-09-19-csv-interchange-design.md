@@ -100,7 +100,7 @@ Unit tests are written first.
   - Links whose notes contain line breaks, quotes and commas come back with byte-identical Tagged URL, Short URL, UTM values and notes;
   - a Link with a Custom Parameter comes back with the same Tagged URL parameters (compared as parsed `URLSearchParams`, order-insensitive) and the same origin and path.
 
-End-to-end: one spec creates a Link with a two-line note, exports it from the Links page, imports the downloaded file, and expects two Links with that campaign.
+End-to-end: one spec creates a Link whose note holds a comma and quotes (`first, "second"`; the notes field is a single-line input, so line breaks are covered by the unit tests), exports it from the Links page, imports the downloaded file, and expects two Links carrying that exact note.
 
 ## Docs
 

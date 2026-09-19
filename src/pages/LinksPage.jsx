@@ -7,8 +7,8 @@ import Modal from '../components/Modal';
 import CreateLinkModal from './CreateLinkModal';
 import ImportLinksModal from './ImportLinksModal';
 import { copyToClipboard, formatDate } from '../utils/utm';
-import { exportToCsv } from '../utils/csv';
-import { cloneLink, deleteLink, listLinks, attachQrCode } from '../links';
+import { downloadCsv } from '../utils/csv';
+import { cloneLink, deleteLink, listLinks, attachQrCode, linksToCsv } from '../links';
 import QRCode from 'qrcode';
 
 export default function LinksPage() {
@@ -52,12 +52,7 @@ export default function LinksPage() {
   }, {}) : { all: filtered };
 
   const handleExport = () => {
-    const data = filtered.map(l => ({
-      created_by: l.createdBy, created_at: l.createdAt, short_url: l.shortUrl || '',
-      full_url: taggedUrl(l), campaign: l.campaign, medium: l.medium,
-      source: l.source, term: l.term, content: l.content, notes: l.notes || '', url: l.url,
-    }));
-    exportToCsv(data, `utm-links-${Date.now()}.csv`);
+    downloadCsv(linksToCsv(filtered, taggedUrl), `utm-links-${Date.now()}.csv`);
     toast('Exported to CSV');
   };
 

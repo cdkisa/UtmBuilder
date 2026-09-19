@@ -32,13 +32,13 @@ test.describe('QR Codes Page', () => {
   test('creates QR code with UTM parameters', async ({ page }) => {
     await page.locator('button:has-text("CREATE QR CODE")').click();
 
-    await page.locator(`${modal} input`).first().fill('https://qr-test.com');
+    await page.locator(`${modal} input`).first().fill('https://qr-test.test');
     await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('qr-campaign');
     await page.locator(`${modal} input[placeholder*="social"]`).fill('social');
     await page.locator(`${modal} input[placeholder*="facebook"]`).fill('facebook');
 
     await expect(page.locator(`${modal} img[alt="QR Preview"]`)).toBeVisible({ timeout: 5000 });
-    await expect(page.locator(`${modal} .font-mono`).last()).toContainText('qr-test.com');
+    await expect(page.locator(`${modal} .font-mono`).last()).toContainText('qr-test.test');
 
     await page.locator(`${modal} button:has-text("Copy & Save")`).click();
     await expect(page.locator('text=QR Code created')).toBeVisible();
@@ -48,7 +48,7 @@ test.describe('QR Codes Page', () => {
   test('shows QR preview when URL is entered', async ({ page }) => {
     await page.locator('button:has-text("CREATE QR CODE")').click();
 
-    await page.locator(`${modal} input`).first().fill('https://preview-test.com');
+    await page.locator(`${modal} input`).first().fill('https://preview-test.test');
     await expect(page.locator(`${modal} img[alt="QR Preview"]`)).toBeVisible({ timeout: 5000 });
     await expect(page.locator(`${modal}`)).toContainText('Download QR');
   });
@@ -183,7 +183,7 @@ test.describe('QR Codes Page', () => {
     await page.goto('/');
     await page.waitForSelector('main h1');
     await page.locator('button:has-text("CREATE LINK")').click();
-    await page.locator('.modal-backdrop input[placeholder="https://example.com"]').fill('https://existing-link.com');
+    await page.locator('.modal-backdrop input[placeholder="https://example.com"]').fill('https://existing-link.test');
     await page.locator('.modal-backdrop input[placeholder*="holiday special"]').fill('existing-camp');
     await page.locator('.modal-backdrop input[placeholder*="banner ad"]').fill('email');
     await page.locator('.modal-backdrop button:has-text("Copy & Save")').click();
@@ -196,7 +196,7 @@ test.describe('QR Codes Page', () => {
     await page.locator(`${modal} button:has-text("Existing Link")`).click();
 
     // Link should appear in picker
-    await expect(page.locator(`${modal}`)).toContainText('existing-link.com');
+    await expect(page.locator(`${modal}`)).toContainText('existing-link.test');
     await expect(page.locator(`${modal}`)).toContainText('existing-camp');
   });
 
@@ -205,7 +205,7 @@ test.describe('QR Codes Page', () => {
     await page.goto('/');
     await page.waitForSelector('main h1');
     await page.locator('button:has-text("CREATE LINK")').click();
-    await page.locator('.modal-backdrop input[placeholder="https://example.com"]').fill('https://select-me.com');
+    await page.locator('.modal-backdrop input[placeholder="https://example.com"]').fill('https://select-me.test');
     await page.locator('.modal-backdrop input[placeholder*="holiday special"]').fill('select-camp');
     await page.locator('.modal-backdrop button:has-text("Copy & Save")').click();
     await expect(page.locator('td:has-text("select-camp")').first()).toBeVisible();
@@ -217,7 +217,7 @@ test.describe('QR Codes Page', () => {
     await page.locator(`${modal} button:has-text("Existing Link")`).click();
 
     // Click the link in the picker
-    await page.locator(`${modal} button:has-text("select-me.com")`).click();
+    await page.locator(`${modal} button:has-text("select-me.test")`).click();
 
     // Should show selected link details and QR preview
     await expect(page.locator(`${modal}`)).toContainText('Selected Link');
@@ -229,7 +229,7 @@ test.describe('QR Codes Page', () => {
     await page.goto('/');
     await page.waitForSelector('main h1');
     await page.locator('button:has-text("CREATE LINK")').click();
-    await page.locator('.modal-backdrop input[placeholder="https://example.com"]').fill('https://qr-existing.com');
+    await page.locator('.modal-backdrop input[placeholder="https://example.com"]').fill('https://qr-existing.test');
     await page.locator('.modal-backdrop input[placeholder*="holiday special"]').fill('qr-existing');
     await page.locator('.modal-backdrop button:has-text("Copy & Save")').click();
     await expect(page.locator('td:has-text("qr-existing")').first()).toBeVisible();
@@ -239,7 +239,7 @@ test.describe('QR Codes Page', () => {
     await page.waitForSelector('main h1');
     await page.locator('button:has-text("CREATE QR CODE")').click();
     await page.locator(`${modal} button:has-text("Existing Link")`).click();
-    await page.locator(`${modal} button:has-text("qr-existing.com")`).click();
+    await page.locator(`${modal} button:has-text("qr-existing.test")`).click();
     await expect(page.locator(`${modal} img[alt="QR Preview"]`)).toBeVisible({ timeout: 5000 });
 
     await page.locator(`${modal} button:has-text("Generate & Save")`).click();
@@ -254,13 +254,13 @@ test.describe('QR Codes Page', () => {
     await page.goto('/');
     await page.waitForSelector('main h1');
     await page.locator('button:has-text("CREATE LINK")').click();
-    await page.locator('.modal-backdrop input[placeholder="https://example.com"]').fill('https://findable.com');
+    await page.locator('.modal-backdrop input[placeholder="https://example.com"]').fill('https://findable.test');
     await page.locator('.modal-backdrop input[placeholder*="holiday special"]').fill('findable');
     await page.locator('.modal-backdrop button:has-text("Copy & Save")').click();
     await expect(page.locator('td:has-text("findable")').first()).toBeVisible();
 
     await page.locator('button:has-text("CREATE LINK")').click();
-    await page.locator('.modal-backdrop input[placeholder="https://example.com"]').fill('https://other-link.com');
+    await page.locator('.modal-backdrop input[placeholder="https://example.com"]').fill('https://other-link.test');
     await page.locator('.modal-backdrop input[placeholder*="holiday special"]').fill('other');
     await page.locator('.modal-backdrop button:has-text("Copy & Save")').click();
     await expect(page.locator('td:has-text("other")').first()).toBeVisible();
@@ -272,8 +272,8 @@ test.describe('QR Codes Page', () => {
     await page.locator(`${modal} button:has-text("Existing Link")`).click();
 
     await page.locator(`${modal} input[placeholder*="Search links"]`).fill('findable');
-    await expect(page.locator(`${modal}`)).toContainText('findable.com');
-    await expect(page.locator(`${modal}`)).not.toContainText('other-link.com');
+    await expect(page.locator(`${modal}`)).toContainText('findable.test');
+    await expect(page.locator(`${modal}`)).not.toContainText('other-link.test');
   });
 
   test('requires link selection for existing link mode', async ({ page }) => {
@@ -295,7 +295,7 @@ test.describe('QR Codes Page', () => {
     await page.locator('nav a:has-text("QR Codes")').click();
     await page.waitForSelector('main h1');
     await page.locator('button:has-text("CREATE QR CODE")').click();
-    await page.locator(`${modal} input`).first().fill('https://qr-template.com');
+    await page.locator(`${modal} input`).first().fill('https://qr-template.test');
     await page.locator(`${modal} select`).first().selectOption({ label: 'QR Template' });
 
     const campaignInput = page.locator(`${modal} input[list="list-campaign"]`);

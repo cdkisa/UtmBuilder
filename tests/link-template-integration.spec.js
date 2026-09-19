@@ -26,7 +26,7 @@ test.describe('Link + Template Integration', () => {
     await page.waitForSelector('main h1');
     await page.locator('button:has-text("CREATE LINK")').click();
 
-    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://template-link.com');
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://template-link.test');
 
     // Select the template
     await page.locator(`${modal} select`).first().selectOption({ label: 'Email Template' });
@@ -60,7 +60,7 @@ test.describe('Link + Template Integration', () => {
     await page.locator('nav a:has-text("Links")').first().click();
     await page.waitForSelector('main h1');
     await page.locator('button:has-text("CREATE LINK")').click();
-    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://clear-test.com');
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://clear-test.test');
 
     // Select template
     await page.locator(`${modal} select`).first().selectOption({ label: 'Clearable Template' });
@@ -83,9 +83,9 @@ test.describe('Link + Template Integration', () => {
   test('URL preview updates in real-time', async ({ page }) => {
     await page.locator('button:has-text("CREATE LINK")').click();
 
-    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://preview.com');
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://preview.test');
     const preview = page.locator(`${modal} .font-mono`);
-    await expect(preview).toContainText('https://preview.com');
+    await expect(preview).toContainText('https://preview.test');
 
     await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('live-update');
     await expect(preview).toContainText('utm_campaign=live-update');
@@ -97,11 +97,11 @@ test.describe('Link + Template Integration', () => {
   test('auto-prefixes https:// to URLs', async ({ page }) => {
     await page.locator('button:has-text("CREATE LINK")').click();
 
-    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('mysite.com');
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('mysite.test');
     await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('prefix-test');
 
     const preview = page.locator(`${modal} .font-mono`);
-    await expect(preview).toContainText('https://mysite.com');
+    await expect(preview).toContainText('https://mysite.test');
   });
 
   test('HTML email mode refuses a Template deleted after it was chosen', async ({ page }) => {
@@ -118,7 +118,7 @@ test.describe('Link + Template Integration', () => {
     await page.locator('button:has-text("CREATE LINK")').click();
     await page.locator(`${modal} select`).first().selectOption({ label: 'Vanishing Template' });
     await page.locator(`${modal} button:has-text("HTML Email")`).click();
-    await page.locator(`${modal} textarea`).fill('<a href="https://email-target.com">x</a>');
+    await page.locator(`${modal} textarea`).fill('<a href="https://email-target.test">x</a>');
 
     // Delete the Template from another tab while this one still has it chosen
     const other = await page.context().newPage();

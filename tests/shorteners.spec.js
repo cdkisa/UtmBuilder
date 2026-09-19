@@ -42,12 +42,12 @@ test.describe('Link Shorteners Page', () => {
 
     await expect(page.locator(modal)).toContainText('Configure a custom branded domain');
 
-    await page.locator(`${modal} input[placeholder="Enter Branded Domain"]`).fill('go.mycompany.com');
-    await page.locator(`${modal} input[placeholder="Default Redirect URL"]`).fill('https://mycompany.com');
+    await page.locator(`${modal} input[placeholder="Enter Branded Domain"]`).fill('go.mycompany.test');
+    await page.locator(`${modal} input[placeholder="Default Redirect URL"]`).fill('https://mycompany.test');
     await page.locator(`${modal} button:has-text("Next")`).click();
 
     await expect(page.locator('text=Custom domain shortener added')).toBeVisible();
-    await expect(page.locator('td:has-text("go.mycompany.com")')).toBeVisible();
+    await expect(page.locator('td:has-text("go.mycompany.test")')).toBeVisible();
   });
 
   test('requires domain for custom shortener', async ({ page }) => {

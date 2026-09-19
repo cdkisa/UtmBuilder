@@ -58,7 +58,7 @@ test.describe('Links Page', () => {
     await page.locator(`${modal} button:has-text("Multiple URLs")`).click();
 
     // Enter multiple URLs
-    await page.locator(`${modal} textarea`).fill('https://bulk1.com\nhttps://bulk2.com\nhttps://bulk3.com');
+    await page.locator(`${modal} textarea`).fill('https://bulk1.test\nhttps://bulk2.test\nhttps://bulk3.test');
     await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('bulk-campaign');
     await page.locator(`${modal} input[placeholder*="banner ad"]`).fill('email');
 
@@ -79,7 +79,7 @@ test.describe('Links Page', () => {
     await page.locator('button:has-text("CREATE LINK")').click();
     await page.locator(`${modal} button:has-text("Multiple URLs")`).click();
 
-    await page.locator(`${modal} textarea`).fill('https://multi1.com\nhttps://multi2.com');
+    await page.locator(`${modal} textarea`).fill('https://multi1.test\nhttps://multi2.test');
     await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('shared-campaign');
     await page.locator(`${modal} input[placeholder*="banner ad"]`).fill('social');
 
@@ -94,13 +94,13 @@ test.describe('Links Page', () => {
   test('creates a single UTM link', async ({ page }) => {
     await page.locator('button:has-text("CREATE LINK")').click();
 
-    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://mysite.com');
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://mysite.test');
     await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('summer-sale');
     await page.locator(`${modal} input[placeholder*="banner ad"]`).fill('email');
     await page.locator(`${modal} input[placeholder*="adwords"]`).fill('newsletter');
 
     const preview = page.locator(`${modal} .font-mono`);
-    await expect(preview).toContainText('https://mysite.com?utm_campaign=summer-sale');
+    await expect(preview).toContainText('https://mysite.test?utm_campaign=summer-sale');
     await expect(preview).toContainText('utm_medium=email');
     await expect(preview).toContainText('utm_source=newsletter');
 
@@ -121,7 +121,7 @@ test.describe('Links Page', () => {
   test('creates link with custom parameters', async ({ page }) => {
     await page.locator('button:has-text("CREATE LINK")').click();
 
-    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://mysite.com');
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://mysite.test');
     await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('test-campaign');
 
     await page.locator(`${modal} button:has-text("+ Add custom URL parameter")`).click();
@@ -138,7 +138,7 @@ test.describe('Links Page', () => {
   test('creates link with notes', async ({ page }) => {
     await page.locator('button:has-text("CREATE LINK")').click();
 
-    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://mysite.com');
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://mysite.test');
     await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('noted-campaign');
     await page.locator(`${modal} input[placeholder*="Notes are saved"]`).fill('This is a test note');
 
@@ -149,7 +149,7 @@ test.describe('Links Page', () => {
   test('creates link with shortener', async ({ page }) => {
     await page.locator('button:has-text("CREATE LINK")').click();
 
-    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://mysite.com');
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://mysite.test');
     await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('short-campaign');
     await page.locator(`${modal} select`).last().selectOption('local');
 
@@ -159,7 +159,7 @@ test.describe('Links Page', () => {
 
   test('cancels link creation', async ({ page }) => {
     await page.locator('button:has-text("CREATE LINK")').click();
-    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://cancel-me.com');
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://cancel-me.test');
     await page.locator(`${modal} button:has-text("Cancel")`).click();
     await expect(page.locator('text=No Links created yet!')).toBeVisible();
   });
@@ -167,13 +167,13 @@ test.describe('Links Page', () => {
   test('searches links', async ({ page }) => {
     // Create two links
     await page.locator('button:has-text("CREATE LINK")').click();
-    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://searchable.com');
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://searchable.test');
     await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('findme-campaign');
     await page.locator(`${modal} button:has-text("Copy & Save")`).click();
     await expect(page.locator('td:has-text("findme-campaign")').first()).toBeVisible();
 
     await page.locator('button:has-text("CREATE LINK")').click();
-    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://other.com');
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://other.test');
     await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('hidden-campaign');
     await page.locator(`${modal} button:has-text("Copy & Save")`).click();
     await expect(page.locator('td:has-text("hidden-campaign")').first()).toBeVisible();
@@ -193,7 +193,7 @@ test.describe('Links Page', () => {
 
   test('groups links by campaign', async ({ page }) => {
     await page.locator('button:has-text("CREATE LINK")').click();
-    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://grouped.com');
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://grouped.test');
     await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('group-test');
     await page.locator(`${modal} button:has-text("Copy & Save")`).click();
     await expect(page.locator('td:has-text("group-test")').first()).toBeVisible();
@@ -204,7 +204,7 @@ test.describe('Links Page', () => {
 
   test('shows delete confirmation modal', async ({ page }) => {
     await page.locator('button:has-text("CREATE LINK")').click();
-    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://confirm-delete.com');
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://confirm-delete.test');
     await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('confirm-del');
     await page.locator(`${modal} button:has-text("Copy & Save")`).click();
     await expect(page.locator('td:has-text("confirm-del")').first()).toBeVisible();
@@ -221,7 +221,7 @@ test.describe('Links Page', () => {
 
   test('deletes a link after confirmation', async ({ page }) => {
     await page.locator('button:has-text("CREATE LINK")').click();
-    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://deleteme.com');
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://deleteme.test');
     await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('delete-campaign');
     await page.locator(`${modal} button:has-text("Copy & Save")`).click();
     await expect(page.locator('td:has-text("delete-campaign")').first()).toBeVisible();
@@ -235,7 +235,7 @@ test.describe('Links Page', () => {
 
   test('cancels link deletion', async ({ page }) => {
     await page.locator('button:has-text("CREATE LINK")').click();
-    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://keepme.com');
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://keepme.test');
     await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('keep-campaign');
     await page.locator(`${modal} button:has-text("Copy & Save")`).click();
     await expect(page.locator('td:has-text("keep-campaign")').first()).toBeVisible();
@@ -250,7 +250,7 @@ test.describe('Links Page', () => {
 
   test('closes delete modal by clicking backdrop', async ({ page }) => {
     await page.locator('button:has-text("CREATE LINK")').click();
-    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://backdrop.com');
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://backdrop.test');
     await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('backdrop-campaign');
     await page.locator(`${modal} button:has-text("Copy & Save")`).click();
     await expect(page.locator('td:has-text("backdrop-campaign")').first()).toBeVisible();
@@ -270,7 +270,7 @@ test.describe('Links Page', () => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
     await page.locator('button:has-text("CREATE LINK")').click();
-    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://copy.com');
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://copy.test');
     await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('copy-campaign');
     await page.locator(`${modal} button:has-text("Copy & Save")`).click();
     await expect(page.locator('td:has-text("copy-campaign")').first()).toBeVisible();
@@ -282,7 +282,7 @@ test.describe('Links Page', () => {
   test('opens QR code modal from link row', async ({ page }) => {
     // Create a link first
     await page.locator('button:has-text("CREATE LINK")').click();
-    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://qr-from-link.com');
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://qr-from-link.test');
     await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('qr-test');
     await page.locator(`${modal} button:has-text("Copy & Save")`).click();
     await expect(page.locator('td:has-text("qr-test")').first()).toBeVisible();
@@ -290,7 +290,7 @@ test.describe('Links Page', () => {
     // Click QR button
     await page.locator('button[title="Generate QR Code"]').click();
     await expect(page.locator(`${modal} h2`)).toContainText('QR Code');
-    await expect(page.locator(`${modal} .font-mono`)).toContainText('qr-from-link.com');
+    await expect(page.locator(`${modal} .font-mono`)).toContainText('qr-from-link.test');
 
     // QR image should generate
     await expect(page.locator(`${modal} img[alt="QR Code"]`)).toBeVisible({ timeout: 5000 });
@@ -298,7 +298,7 @@ test.describe('Links Page', () => {
 
   test('QR modal shows download and save buttons', async ({ page }) => {
     await page.locator('button:has-text("CREATE LINK")').click();
-    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://qr-buttons.com');
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://qr-buttons.test');
     await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('btn-test');
     await page.locator(`${modal} button:has-text("Copy & Save")`).click();
     await expect(page.locator('td:has-text("btn-test")').first()).toBeVisible();
@@ -312,7 +312,7 @@ test.describe('Links Page', () => {
 
   test('saves QR code to link', async ({ page }) => {
     await page.locator('button:has-text("CREATE LINK")').click();
-    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://save-qr.com');
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://save-qr.test');
     await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('save-qr');
     await page.locator(`${modal} button:has-text("Copy & Save")`).click();
     await expect(page.locator('td:has-text("save-qr")').first()).toBeVisible();
@@ -326,7 +326,7 @@ test.describe('Links Page', () => {
 
   test('QR modal uses short URL when available', async ({ page }) => {
     await page.locator('button:has-text("CREATE LINK")').click();
-    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://short-qr.com');
+    await page.locator(`${modal} input[placeholder="https://example.com"]`).fill('https://short-qr.test');
     await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('short-qr');
     await page.locator(`${modal} select`).last().selectOption('local');
     await page.locator(`${modal} button:has-text("Copy & Save")`).click();

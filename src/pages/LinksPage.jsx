@@ -6,7 +6,8 @@ import { Button, EmptyState, Badge } from '../components/UI';
 import Modal from '../components/Modal';
 import CreateLinkModal from './CreateLinkModal';
 import ImportLinksModal from './ImportLinksModal';
-import { exportToCsv, copyToClipboard, formatDate } from '../utils/utm';
+import { copyToClipboard, formatDate } from '../utils/utm';
+import { exportToCsv } from '../utils/csv';
 import { cloneLink, deleteLink, listLinks, attachQrCode } from '../links';
 import QRCode from 'qrcode';
 

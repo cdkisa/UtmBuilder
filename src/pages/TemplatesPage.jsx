@@ -3,7 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useToast } from '../hooks/useToast';
 import { Button, EmptyState, ComboInput, Input, Checkbox, Select } from '../components/UI';
 import Modal from '../components/Modal';
-import { exportToCsv, formatDate } from '../utils/utm';
+import { formatDate } from '../utils/utm';
+import { exportToCsv } from '../utils/csv';
 import db from '../db';
 
 export default function TemplatesPage() {

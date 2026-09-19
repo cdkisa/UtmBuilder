@@ -282,4 +282,28 @@ test.describe('QR Codes Page', () => {
     await page.locator(`${modal} button:has-text("Generate & Save")`).click();
     await expect(page.locator('text=Select a link first')).toBeVisible();
   });
+
+  test('applies a chosen Template without copying it into the fields', async ({ page }) => {
+    await page.locator('nav a:has-text("Templates")').click();
+    await page.waitForSelector('main h1');
+    await page.getByRole('button', { name: 'CREATE TEMPLATE', exact: true }).click();
+    await page.locator(`${modal} input`).first().fill('QR Template');
+    await page.locator(`${modal} input[placeholder*="holiday special"]`).fill('qr-spring');
+    await page.locator(`${modal} button:has-text("Save Template")`).click();
+    await expect(page.locator('text=Template created')).toBeVisible();
+
+    await page.locator('nav a:has-text("QR Codes")').click();
+    await page.waitForSelector('main h1');
+    await page.locator('button:has-text("CREATE QR CODE")').click();
+    await page.locator(`${modal} input`).first().fill('https://qr-template.com');
+    await page.locator(`${modal} select`).first().selectOption({ label: 'QR Template' });
+
+    const campaignInput = page.locator(`${modal} input[list="list-campaign"]`);
+    await expect(campaignInput).toHaveValue('');
+    await expect(campaignInput).toHaveAttribute('placeholder', 'qr-spring');
+
+    await page.locator(`${modal} button:has-text("Copy & Save")`).click();
+    await expect(page.locator('text=QR Code created')).toBeVisible();
+    await expect(page.locator('td:has-text("qr-spring")').first()).toBeVisible();
+  });
 });

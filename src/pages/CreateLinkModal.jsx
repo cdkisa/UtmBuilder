@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import Modal from '../components/Modal';
 import { Button, Input, ComboInput, Select, Checkbox } from '../components/UI';
 import { useToast } from '../hooks/useToast';
-import { useLinkPolicy, useCurrentAuthor } from '../hooks/useLinks';
+import { useLinkPolicy, useCurrentAuthor, useTemplateLookup } from '../hooks/useLinks';
 import { copyToClipboard } from '../utils/utm';
 import { composeLink, composeTaggedUrl, saveLink, saveLinks } from '../links';
 import db from '../db';
@@ -47,21 +47,18 @@ export default function CreateLinkModal({ open, onClose, mode: initialMode = 'si
     setMode(initialMode);
   }, [initialMode]);
 
-  useEffect(() => {
-    if (templateId) {
-      const tmpl = templates.find(t => t.id === Number(templateId));
-      if (tmpl) {
-        if (tmpl.campaign) setCampaign(tmpl.campaign);
-        if (tmpl.medium) setMedium(tmpl.medium);
-        if (tmpl.source) setSource(tmpl.source);
-        if (tmpl.term) setTerm(tmpl.term);
-        if (tmpl.content) setContent(tmpl.content);
-      }
-    }
-  }, [templateId, templates]);
-
   const author = useCurrentAuthor();
   const policy = useLinkPolicy();
+  const findTemplate = useTemplateLookup();
+  const composeDeps = { templates: findTemplate };
+
+  // A chosen Template's values show as placeholders rather than being copied
+  // in; composing applies them beneath whatever is typed (ADR-0007).
+  const chosenTemplate = templateId ? findTemplate(templateId) : undefined;
+  const hintFor = (field, fallback) => {
+    const value = chosenTemplate?.[field];
+    return value != null && String(value).trim() !== '' ? value : fallback;
+  };
 
   // 'local' is the built-in offline Shortener; every other option is a
   // configured Shortener, whose own domain is the one that must be used.
@@ -84,7 +81,7 @@ export default function CreateLinkModal({ open, onClose, mode: initialMode = 'si
     author,
   });
 
-  const previewTaggedUrl = composeTaggedUrl(url, buildIntent(), policy);
+  const previewTaggedUrl = composeTaggedUrl(url, buildIntent(), policy, composeDeps);
 
   const reset = () => {
     setMode(initialMode);
@@ -108,7 +105,7 @@ export default function CreateLinkModal({ open, onClose, mode: initialMode = 'si
     }
   };
 
-  const compose = (destination) => composeLink(buildIntent(destination), policy);
+  const compose = (destination) => composeLink(buildIntent(destination), policy, composeDeps);
 
   const reportViolations = (violations) => {
     toast(violations[0]?.message || 'This link is not valid', 'error');
@@ -118,8 +115,13 @@ export default function CreateLinkModal({ open, onClose, mode: initialMode = 'si
     setIsVerifying(true);
     if (mode === 'email') {
       if (!emailHtml.trim()) { toast('Enter HTML email code', 'error'); setIsVerifying(false); return; }
+      if (templateId && !findTemplate(templateId)) {
+        toast('The chosen Template no longer exists.', 'error');
+        setIsVerifying(false);
+        return;
+      }
       const newHtml = emailHtml.replace(/(href=["'])(https?:\/\/[^"']+)/g, (match, prefix, matchUrl) => {
-        return prefix + composeTaggedUrl(matchUrl, buildIntent(), policy);
+        return prefix + composeTaggedUrl(matchUrl, buildIntent(), policy, composeDeps);
       });
       setProcessedHtml(newHtml);
       await copyToClipboard(newHtml);
@@ -236,15 +238,15 @@ export default function CreateLinkModal({ open, onClose, mode: initialMode = 'si
 
       {/* UTM Params */}
       <ComboInput label="campaign" value={campaign} onChange={setCampaign}
-        options={campaignOpts} placeholder="e.g. holiday special, birthday promotion" className="mb-3" />
+        options={campaignOpts} placeholder={hintFor('campaign', 'e.g. holiday special, birthday promotion')} className="mb-3" />
       <ComboInput label="medium" value={medium} onChange={setMedium}
-        options={mediumOpts} placeholder="e.g. banner ad, email, social post" className="mb-3" />
+        options={mediumOpts} placeholder={hintFor('medium', 'e.g. banner ad, email, social post')} className="mb-3" />
       <ComboInput label="source" value={source} onChange={setSource}
-        options={sourceOpts} placeholder="e.g. adwords, google, mailchimp" className="mb-3" />
+        options={sourceOpts} placeholder={hintFor('source', 'e.g. adwords, google, mailchimp')} className="mb-3" />
       <ComboInput label="term" value={term} onChange={setTerm}
-        options={termOpts} placeholder="Use to identify ppc keywords" className="mb-3" />
+        options={termOpts} placeholder={hintFor('term', 'Use to identify ppc keywords')} className="mb-3" />
       <ComboInput label="content" value={content} onChange={setContent}
-        options={contentOpts} placeholder="Use to differentiate ads or words on a page" className="mb-3" />
+        options={contentOpts} placeholder={hintFor('content', 'Use to differentiate ads or words on a page')} className="mb-3" />
 
       {/* Custom URL params */}
       <button onClick={addCustomParam} className="text-xs text-brand-600 font-semibold mb-3 hover:text-brand-700">

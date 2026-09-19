@@ -224,3 +224,140 @@ describe('composing under a Workspace Policy', () => {
     );
   });
 });
+
+describe('composing from a Template', () => {
+  const spring = {
+    id: 4,
+    name: 'Spring promo',
+    campaign: 'spring-2026',
+    medium: 'email',
+    source: 'mailchimp',
+    term: '',
+    content: '',
+  };
+  const templates = id => (id === 4 ? spring : undefined);
+
+  it("shows a Template's values through the fields the Intent left untyped", () => {
+    const result = composeLink(intent({ templateId: 4 }), policy, { templates });
+
+    expect(result.draft.taggedUrl).toBe(
+      'https://example.com?utm_campaign=spring-2026&utm_medium=email&utm_source=mailchimp',
+    );
+  });
+
+  it("lets a typed value win over the Template's", () => {
+    const result = composeLink(
+      intent({ templateId: 4, utm: { medium: 'newsletter' } }),
+      policy,
+      { templates },
+    );
+
+    expect(result.draft.utm.medium).toBe('newsletter');
+    expect(result.draft.utm.campaign).toBe('spring-2026');
+  });
+
+  it('treats a whitespace-only value as untyped', () => {
+    const result = composeLink(
+      intent({ templateId: 4, utm: { campaign: '   ' } }),
+      policy,
+      { templates },
+    );
+
+    expect(result.draft.utm.campaign).toBe('spring-2026');
+  });
+
+  it('snapshots the resolved values onto the Draft', () => {
+    const result = composeLink(
+      intent({ templateId: 4, utm: { medium: 'newsletter' } }),
+      policy,
+      { templates },
+    );
+
+    // The saved Link must not depend on the Template staying unchanged (ADR-0007).
+    expect(result.draft.utm).toEqual({
+      campaign: 'spring-2026',
+      medium: 'newsletter',
+      source: 'mailchimp',
+    });
+    expect(result.draft.templateId).toBe(4);
+  });
+
+  it("normalises a Template's value on the Tagged URL but stores it as the Template holds it", () => {
+    const spaced = id => (id === 4 ? { ...spring, campaign: 'Spring Sale' } : undefined);
+
+    const result = composeLink(intent({ templateId: 4 }), policy, { templates: spaced });
+
+    expect(result.draft.taggedUrl).toContain('utm_campaign=Spring-Sale');
+    expect(result.draft.utm.campaign).toBe('Spring Sale');
+  });
+
+  it("holds a Template's values to the Rules in force", () => {
+    const strict = createPolicy({ spaceChar: 'hyphen' }, [
+      { id: 1, name: 'Rule 1', config: { campaign: { prohibitedValues: 'spring-2026' } } },
+    ]);
+
+    const result = composeLink(intent({ templateId: 4 }), strict, { templates });
+
+    expect(result.ok).toBe(false);
+    expect(result.violations).toEqual([
+      { field: 'campaign', message: 'Campaign may not be "spring-2026".' },
+    ]);
+  });
+
+  it('reports a Template that no longer exists instead of composing without it', () => {
+    const result = composeLink(intent({ templateId: 99 }), policy, { templates });
+
+    expect(result.ok).toBe(false);
+    expect(result.draft).toBeUndefined();
+    expect(result.violations).toEqual([
+      { field: 'template', message: 'The chosen Template no longer exists.' },
+    ]);
+  });
+
+  it('reports a chosen Template as missing when no lookup is supplied', () => {
+    const result = composeLink(intent({ templateId: 4 }), policy);
+
+    expect(result.violations).toEqual([
+      { field: 'template', message: 'The chosen Template no longer exists.' },
+    ]);
+  });
+
+  it('never consults the lookup when no Template is chosen', () => {
+    const untouchable = () => {
+      throw new Error('the lookup must not be called');
+    };
+
+    const result = composeLink(intent({ utm: { campaign: 'summer' } }), policy, {
+      templates: untouchable,
+    });
+
+    expect(result.draft.taggedUrl).toBe('https://example.com?utm_campaign=summer');
+  });
+});
+
+describe('composeTaggedUrl with a Template', () => {
+  const templates = id =>
+    id === 4 ? { id: 4, campaign: 'spring-2026', medium: 'email', source: '' } : undefined;
+
+  it('tags with the Template underneath the typed values, as composeLink does', () => {
+    const url = composeTaggedUrl(
+      'example.com',
+      { templateId: 4, utm: { medium: 'newsletter' } },
+      policy,
+      { templates },
+    );
+
+    expect(url).toBe('https://example.com?utm_campaign=spring-2026&utm_medium=newsletter');
+  });
+
+  it('tags with the typed values alone when the Template no longer exists', () => {
+    const url = composeTaggedUrl(
+      'example.com',
+      { templateId: 99, utm: { medium: 'newsletter' } },
+      policy,
+      { templates },
+    );
+
+    expect(url).toBe('https://example.com?utm_medium=newsletter');
+  });
+});

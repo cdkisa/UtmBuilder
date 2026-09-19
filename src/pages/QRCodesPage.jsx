@@ -127,6 +127,11 @@ function CreateQRModal({ open, onClose }) {
   const [qrDesignId, setQrDesignId] = useState('');
   const [qrPreview, setQrPreview] = useState('');
 
+  // A chosen Template's values show as placeholders rather than being copied
+  // in; composing applies them beneath whatever is typed (ADR-0007).
+  const chosenTemplate = templateId ? findTemplate(templateId) : undefined;
+  const hintFor = (field, fallback) => chosenTemplate?.[field] || fallback;
+
   const existingLinks = useLiveQuery(listLinks, []) || [];
 
   const templates = useLiveQuery(
@@ -202,19 +207,6 @@ function CreateQRModal({ open, onClose }) {
       setQrPreview('');
     }
   }, [previewTaggedUrl, qrDesignId, qrTemplates]);
-
-  useEffect(() => {
-    if (templateId) {
-      const tmpl = templates.find(t => t.id === Number(templateId));
-      if (tmpl) {
-        if (tmpl.campaign) setCampaign(tmpl.campaign);
-        if (tmpl.medium) setMedium(tmpl.medium);
-        if (tmpl.source) setSource(tmpl.source);
-        if (tmpl.term) setTerm(tmpl.term);
-        if (tmpl.content) setContent(tmpl.content);
-      }
-    }
-  }, [templateId, templates]);
 
   const reset = () => {
     setMode('new'); setSelectedLinkId(''); setLinkSearch('');
@@ -362,13 +354,13 @@ function CreateQRModal({ open, onClose }) {
                 </div>
               </div>
               <ComboInput label="campaign" value={campaign} onChange={setCampaign} options={campaignOpts}
-                placeholder="e.g. holiday special" className="mb-3" />
+                placeholder={hintFor('campaign', 'e.g. holiday special')} className="mb-3" />
               <ComboInput label="medium" value={medium} onChange={setMedium} options={mediumOpts}
-                placeholder="e.g. social" className="mb-3" />
+                placeholder={hintFor('medium', 'e.g. social')} className="mb-3" />
               <ComboInput label="source" value={source} onChange={setSource} options={sourceOpts}
-                placeholder="e.g. facebook" className="mb-3" />
-              <ComboInput label="term" value={term} onChange={setTerm} options={[]} placeholder="ppc keywords" className="mb-3" />
-              <ComboInput label="content" value={content} onChange={setContent} options={[]} placeholder="differentiate ads" className="mb-3" />
+                placeholder={hintFor('source', 'e.g. facebook')} className="mb-3" />
+              <ComboInput label="term" value={term} onChange={setTerm} options={[]} placeholder={hintFor('term', 'ppc keywords')} className="mb-3" />
+              <ComboInput label="content" value={content} onChange={setContent} options={[]} placeholder={hintFor('content', 'differentiate ads')} className="mb-3" />
               <Input label="notes" value={notes} onChange={setNotes} className="mb-3" />
               <Select label="Shortener" value={shortener} onChange={setShortener} className="mb-4"
                 options={[{ value: 'none', label: "Don't shorten" }, { value: 'local', label: 'Local shortener' }]} />

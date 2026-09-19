@@ -7,8 +7,7 @@ import Modal from '../components/Modal';
 import CreateLinkModal from './CreateLinkModal';
 import ImportLinksModal from './ImportLinksModal';
 import { exportToCsv, copyToClipboard, formatDate } from '../utils/utm';
-import { cloneLink, deleteLink } from '../links';
-import db from '../db';
+import { cloneLink, deleteLink, listLinks, attachQrCode } from '../links';
 import QRCode from 'qrcode';
 
 export default function LinksPage() {
@@ -23,9 +22,7 @@ export default function LinksPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({ campaign: '', medium: '', source: '', term: '', content: '' });
 
-  const links = useLiveQuery(
-    () => db.links.reverse().toArray()
-  ) || [];
+  const links = useLiveQuery(listLinks) || [];
 
   const taggedUrl = useTaggedUrl();
   const author = useCurrentAuthor();
@@ -253,7 +250,7 @@ function QRFromLinkModal({ link, taggedUrl, onClose }) {
 
   const handleSaveToLink = async () => {
     if (!qrDataUrl || !link?.id) return;
-    await db.links.update(link.id, { qrCode: true, qrDataUrl });
+    await attachQrCode(link.id, { qrDataUrl });
     toast('QR code saved to link');
   };
 

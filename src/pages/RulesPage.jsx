@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { useToast } from '../hooks/useToast';
@@ -30,7 +30,7 @@ export default function RulesPage() {
   const templates = useLiveQuery(() => db.templates.toArray()) || [];
 
   // Sync from settings when they load
-  useState(() => {
+  useEffect(() => {
     if (settings?.id) {
       setSpaceChar(settings.spaceChar || 'hyphen');
       setProhibitedChars(settings.prohibitedChars || '');

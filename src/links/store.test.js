@@ -1,7 +1,15 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, it, expect } from 'vitest';
 import db from '../db.js';
-import { composeLink, createPolicy, saveLink, saveLinks, cloneLink, deleteLink } from './index.js';
+import {
+  composeLink,
+  createPolicy,
+  saveLink,
+  saveLinks,
+  cloneLink,
+  deleteLink,
+  taggedUrlOf,
+} from './index.js';
 
 const policy = createPolicy({ spaceChar: 'hyphen' });
 
@@ -55,6 +63,19 @@ describe('saveLink', () => {
       [7, 'south'],
       [9, 'q3'],
     ]);
+  });
+
+  it('stores what was typed, so a later space-character change still applies', async () => {
+    const id = await saveLink(draftFor({ utm: { campaign: 'Summer Sale' } }));
+
+    // The separator belongs to the Tagged URL, not to the Link (ADR-0001).
+    const stored = await db.links.get(id);
+    expect(stored.campaign).toBe('Summer Sale');
+
+    const underscores = createPolicy({ spaceChar: 'underscore' });
+    expect(taggedUrlOf(stored, underscores)).toBe(
+      'https://example.com?utm_campaign=Summer_Sale',
+    );
   });
 
   it('does not store the Tagged URL', async () => {

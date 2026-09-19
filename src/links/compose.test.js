@@ -175,3 +175,52 @@ describe('violations', () => {
     ]);
   });
 });
+
+describe('composing under a Workspace Policy', () => {
+  it('composes a workspace with no Rules exactly as it did before', () => {
+    const result = composeLink(
+      intent({ utm: { campaign: 'Summer Sale', medium: 'social', source: 'facebook' } }),
+      policy,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.draft.taggedUrl).toBe(
+      'https://example.com?utm_campaign=Summer-Sale&utm_medium=social&utm_source=facebook',
+    );
+  });
+
+  it('reports a Rule Violation instead of producing a Draft', () => {
+    const strict = createPolicy({}, [
+      { id: 1, name: 'Rule 1', config: { campaign: { required: true } } },
+    ]);
+
+    const result = composeLink(intent(), strict);
+
+    expect(result.ok).toBe(false);
+    expect(result.draft).toBeUndefined();
+    expect(result.violations).toEqual([
+      { field: 'campaign', message: 'Campaign is required.' },
+    ]);
+  });
+
+  it('judges the normalised value, not the one that was typed', () => {
+    const strict = createPolicy({ spaceChar: 'hyphen', forceLowercase: true }, [
+      { id: 1, name: 'Rule 1', config: { campaign: { prohibitedValues: 'summer-sale' } } },
+    ]);
+
+    const result = composeLink(intent({ utm: { campaign: 'Summer Sale' } }), strict);
+
+    expect(result.ok).toBe(false);
+    expect(result.violations).toEqual([
+      { field: 'campaign', message: 'Campaign may not be "summer-sale".' },
+    ]);
+  });
+
+  it('derives a stored Link through the Policy, so settings apply on read', () => {
+    const lowercasing = createPolicy({ spaceChar: 'underscore', forceLowercase: true });
+
+    expect(taggedUrlOf({ url: 'example.com', campaign: 'Summer Sale' }, lowercasing)).toBe(
+      'https://example.com?utm_campaign=summer_sale',
+    );
+  });
+});

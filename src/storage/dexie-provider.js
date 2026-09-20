@@ -47,15 +47,17 @@ export const dexieProvider = {
   },
 
   transaction(names, fn) {
-    return db.transaction('rw', names.map(tableFor), fn);
+    const scope = { collection: name => handleFor(tableFor(name)) };
+    return db.transaction('rw', names.map(tableFor), () => fn(scope));
   },
 
   /**
    * liveQuery re-runs the querier whenever Dexie data it read changes, so it
    * tracks dependencies itself. That is this adapter's convenience, not part
    * of the contract: another provider may re-run the querier on any signal.
+   * `collections` is ignored here for that reason.
    */
-  observe(querier) {
+  observe(querier, collections) {
     return liveQuery(querier);
   },
 };

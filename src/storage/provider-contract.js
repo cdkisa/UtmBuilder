@@ -1,7 +1,4 @@
-import 'fake-indexeddb/auto';
 import { beforeEach, describe, it, expect } from 'vitest';
-import db from '../db.js';
-import { dexieProvider } from './dexie-provider.js';
 
 /**
  * The suite every storage provider must pass. A second provider imports this
@@ -87,7 +84,7 @@ export function describeProviderContract(name, createProvider) {
     it('adds many documents at once', async () => {
       await templates.bulkAdd([{ name: 'one' }, { name: 'two' }]);
 
-      expect(await templates.list()).toHaveLength(2);
+      expect((await templates.list()).map(row => row.name)).toEqual(['one', 'two']);
     });
 
     it('leaves nothing behind when a transaction fails', async () => {
@@ -101,13 +98,21 @@ export function describeProviderContract(name, createProvider) {
       expect(await templates.list()).toEqual([]);
     });
 
+    it('hands the transaction callback a scope whose writes are part of it', async () => {
+      await provider.transaction(['templates'], async tx => {
+        await tx.collection('templates').add({ name: 'scoped' });
+      });
+
+      expect((await templates.list()).map(row => row.name)).toEqual(['scoped']);
+    });
+
     it('re-runs an observed query when the data it read changes', async () => {
       const counts = [];
       let arrived;
       const nextResult = () => new Promise(resolve => { arrived = resolve; });
 
       let pending = nextResult();
-      const subscription = provider.observe(() => templates.list()).subscribe({
+      const subscription = provider.observe(() => templates.list(), ['templates']).subscribe({
         next: rows => { counts.push(rows.length); arrived(); },
       });
 
@@ -120,11 +125,19 @@ export function describeProviderContract(name, createProvider) {
       expect(counts[0]).toBe(0);
       expect(counts[counts.length - 1]).toBe(1);
     });
+
+    it('reports a failing query to the subscriber', async () => {
+      let failed;
+      const arrived = new Promise(resolve => { failed = resolve; });
+
+      const subscription = provider
+        .observe(() => Promise.reject(new Error('nope')), ['templates'])
+        .subscribe({ next: () => {}, error: error => failed(error) });
+
+      // `toThrow` needs a function to invoke; the error callback hands us the
+      // rejection itself, so assert on that value directly.
+      await expect(arrived).resolves.toEqual(expect.objectContaining({ message: 'nope' }));
+      subscription.unsubscribe();
+    });
   });
 }
-
-describeProviderContract('Dexie', async () => {
-  await db.delete();
-  await db.open();
-  return dexieProvider;
-});

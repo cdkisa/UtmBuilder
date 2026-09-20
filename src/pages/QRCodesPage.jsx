@@ -21,7 +21,7 @@ export default function QRCodesPage() {
   const [search, setSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
-  const { data: links = [] } = useQuery(listQrLinks, []);
+  const { data: links = [] } = useQuery(listQrLinks, ['links'], []);
 
 
   const filtered = links.filter(l =>
@@ -133,7 +133,7 @@ function CreateQRModal({ open, onClose }) {
     return value != null && String(value).trim() !== '' ? value : fallback;
   };
 
-  const { data: existingLinks = [] } = useQuery(listLinks, []);
+  const { data: existingLinks = [] } = useQuery(listLinks, ['links'], []);
 
   const templates = useLiveQuery(
     () => db.templates.toArray(),

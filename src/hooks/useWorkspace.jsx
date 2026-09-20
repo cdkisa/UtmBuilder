@@ -5,7 +5,7 @@ import { collection } from '../storage/provider.js';
 const WorkspaceContext = createContext(null);
 
 export function WorkspaceProvider({ children }) {
-  const { data: rows = [] } = useQuery(() => collection('workspaceSettings').list(), []);
+  const { data: rows = [] } = useQuery(() => collection('workspaceSettings').list(), ['workspaceSettings'], []);
   const settings = rows[0] || {};
 
   return (

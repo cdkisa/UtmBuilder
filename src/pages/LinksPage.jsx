@@ -23,7 +23,7 @@ export default function LinksPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({ campaign: '', medium: '', source: '', term: '', content: '' });
 
-  const { data: links = [] } = useQuery(listLinks, []);
+  const { data: links = [] } = useQuery(listLinks, ['links'], []);
 
   const taggedUrl = useTaggedUrl();
   const author = useCurrentAuthor();

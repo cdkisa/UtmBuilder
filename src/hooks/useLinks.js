@@ -6,7 +6,7 @@ import { collection } from '../storage/provider.js';
 
 /** Who the app is acting as. Every Link Intent must name an author. */
 export function useCurrentAuthor() {
-  const { data: members = [] } = useQuery(() => collection('members').list(), []);
+  const { data: members = [] } = useQuery(() => collection('members').list(), ['members'], []);
   return members.find(m => m.isAdmin)?.email || 'Admin';
 }
 
@@ -16,7 +16,7 @@ export function useCurrentAuthor() {
  */
 export function useLinkPolicy() {
   const { settings } = useWorkspace();
-  const { data: rules = [] } = useQuery(() => collection('rules').list(), []);
+  const { data: rules = [] } = useQuery(() => collection('rules').list(), ['rules'], []);
 
   return useMemo(() => createPolicy(settings, rules), [settings, rules]);
 }
@@ -28,7 +28,7 @@ export function useLinkPolicy() {
  */
 export function useTaggedUrl() {
   const policy = useLinkPolicy();
-  const { data: customParamRows = [] } = useQuery(listCustomParams, []);
+  const { data: customParamRows = [] } = useQuery(listCustomParams, ['linkCustomParams'], []);
 
   const paramsByLink = useMemo(() => {
     const byLink = new Map();
@@ -51,7 +51,7 @@ export function useTaggedUrl() {
  * shows and what gets composed cannot disagree.
  */
 export function useTemplateLookup() {
-  const { data: templates = [] } = useQuery(() => collection('templates').list(), []);
+  const { data: templates = [] } = useQuery(() => collection('templates').list(), ['templates'], []);
 
   return useMemo(() => {
     const byId = new Map(templates.map(t => [t.id, t]));

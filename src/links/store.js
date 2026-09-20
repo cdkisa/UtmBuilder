@@ -50,18 +50,18 @@ function qrFieldsFor(qr) {
   return { qrCode: true, qrDataUrl: qr.qrDataUrl, qrDesignId: qr.qrDesignId ?? null };
 }
 
-async function insert(draft, qr) {
-  const linkId = await links().add({ ...rowFor(draft), ...qrFieldsFor(qr) });
+async function insert(tx, draft, qr) {
+  const linkId = await tx.collection('links').add({ ...rowFor(draft), ...qrFieldsFor(qr) });
 
   const customParams = draft.customParameters.map(p => ({
     linkId,
     paramName: p.name,
     paramValue: p.value,
   }));
-  if (customParams.length > 0) await linkCustomParams().bulkAdd(customParams);
+  if (customParams.length > 0) await tx.collection('linkCustomParams').bulkAdd(customParams);
 
   const attrs = attributeRowsFor(linkId, draft.attributes);
-  if (attrs.length > 0) await linkAttributes().bulkAdd(attrs);
+  if (attrs.length > 0) await tx.collection('linkAttributes').bulkAdd(attrs);
 
   return linkId;
 }
@@ -72,7 +72,7 @@ async function insert(draft, qr) {
  * without the code it was created for.
  */
 export function saveLink(draft, qr) {
-  return transaction(LINK_COLLECTIONS, () => insert(draft, qr));
+  return transaction(LINK_COLLECTIONS, tx => insert(tx, draft, qr));
 }
 
 /**
@@ -80,32 +80,32 @@ export function saveLink(draft, qr) {
  * nothing behind, so a failed bulk create is safe to retry.
  */
 export function saveLinks(drafts) {
-  return transaction(LINK_COLLECTIONS, async () => {
+  return transaction(LINK_COLLECTIONS, async tx => {
     const ids = [];
-    for (const draft of drafts) ids.push(await insert(draft));
+    for (const draft of drafts) ids.push(await insert(tx, draft));
     return ids;
   });
 }
 
 /** Deletes a Link together with its Custom Parameter and Attribute rows. */
 export function deleteLink(linkId) {
-  return transaction(LINK_COLLECTIONS, async () => {
-    await linkCustomParams().removeWhere('linkId', linkId);
-    await linkAttributes().removeWhere('linkId', linkId);
-    await links().remove(linkId);
+  return transaction(LINK_COLLECTIONS, async tx => {
+    await tx.collection('linkCustomParams').removeWhere('linkId', linkId);
+    await tx.collection('linkAttributes').removeWhere('linkId', linkId);
+    await tx.collection('links').remove(linkId);
   });
 }
 
 /** Copies an existing Link and its children, crediting the given author. */
 export function cloneLink(linkId, author) {
-  return transaction(LINK_COLLECTIONS, async () => {
-    const original = await links().get(linkId);
+  return transaction(LINK_COLLECTIONS, async tx => {
+    const original = await tx.collection('links').get(linkId);
     if (!original) throw new Error(`No Link with id ${linkId}`);
 
     // `fullUrl` is dropped as well as the QR fields: older rows still carry a
     // stale one, and a new row must never be born with that cache (ADR-0001).
     const { id: _discarded, fullUrl, qrCode, qrDataUrl, qrDesignId, ...rest } = original;
-    const copyId = await links().add({
+    const copyId = await tx.collection('links').add({
       ...rest,
       // A Short URL identifies one Link, so a copy starts without one.
       shortUrl: '',
@@ -113,16 +113,20 @@ export function cloneLink(linkId, author) {
       createdAt: new Date().toISOString(),
     });
 
-    const params = await linkCustomParams().list({ where: { field: 'linkId', equals: linkId } });
+    const params = await tx
+      .collection('linkCustomParams')
+      .list({ where: { field: 'linkId', equals: linkId } });
     if (params.length > 0) {
-      await linkCustomParams().bulkAdd(
+      await tx.collection('linkCustomParams').bulkAdd(
         params.map(p => ({ linkId: copyId, paramName: p.paramName, paramValue: p.paramValue })),
       );
     }
 
-    const attrs = await linkAttributes().list({ where: { field: 'linkId', equals: linkId } });
+    const attrs = await tx
+      .collection('linkAttributes')
+      .list({ where: { field: 'linkId', equals: linkId } });
     if (attrs.length > 0) {
-      await linkAttributes().bulkAdd(
+      await tx.collection('linkAttributes').bulkAdd(
         attrs.map(a => ({ linkId: copyId, attributeId: a.attributeId, value: a.value })),
       );
     }
@@ -169,8 +173,8 @@ export function listCustomParams() {
  * behind that nothing can name (ADR-0006).
  */
 export function deleteAttribute(attributeId) {
-  return transaction(['attributes', 'linkAttributes'], async () => {
-    await collection('linkAttributes').removeWhere('attributeId', attributeId);
-    await collection('attributes').remove(attributeId);
+  return transaction(['attributes', 'linkAttributes'], async tx => {
+    await tx.collection('linkAttributes').removeWhere('attributeId', attributeId);
+    await tx.collection('attributes').remove(attributeId);
   });
 }

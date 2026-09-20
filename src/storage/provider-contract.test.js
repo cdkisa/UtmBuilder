@@ -44,6 +44,17 @@ export function describeProviderContract(name, createProvider) {
       expect(mine.map(row => row.value)).toEqual(['north']);
     });
 
+    it('lists matching documents newest first when asked for both', async () => {
+      const attributes = provider.collection('linkAttributes');
+      await attributes.add({ linkId: 1, attributeId: 7, value: 'first' });
+      await attributes.add({ linkId: 2, attributeId: 7, value: 'other' });
+      await attributes.add({ linkId: 1, attributeId: 9, value: 'second' });
+
+      const mine = await attributes.list({ where: { field: 'linkId', equals: 1 }, reverse: true });
+
+      expect(mine.map(row => row.value)).toEqual(['second', 'first']);
+    });
+
     it('merges changes into a document, leaving its other fields alone', async () => {
       const id = await templates.add({ name: 'first', slug: 'keep-me' });
 

@@ -9,10 +9,10 @@ import db from '../db.js';
 function handleFor(table) {
   return {
     list(query = {}) {
-      if (query.where) {
-        return table.where(query.where.field).equals(query.where.equals).toArray();
-      }
-      return query.reverse ? table.reverse().toArray() : table.toArray();
+      const collection = query.where
+        ? table.where(query.where.field).equals(query.where.equals)
+        : table;
+      return query.reverse ? collection.reverse().toArray() : collection.toArray();
     },
     get(id) {
       return table.get(id);

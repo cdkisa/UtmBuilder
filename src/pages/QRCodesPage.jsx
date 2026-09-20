@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useQuery } from '../hooks/useQuery';
 import { useToast } from '../hooks/useToast';
 import { useLinkPolicy, useTaggedUrl, useCurrentAuthor, useTemplateLookup } from '../hooks/useLinks';
 import { Button, EmptyState, ComboInput, Input, Select, Checkbox } from '../components/UI';
@@ -20,7 +21,7 @@ export default function QRCodesPage() {
   const [search, setSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
-  const links = useLiveQuery(listQrLinks, []) || [];
+  const { data: links = [] } = useQuery(listQrLinks, []);
 
 
   const filtered = links.filter(l =>
@@ -132,7 +133,7 @@ function CreateQRModal({ open, onClose }) {
     return value != null && String(value).trim() !== '' ? value : fallback;
   };
 
-  const existingLinks = useLiveQuery(listLinks, []) || [];
+  const { data: existingLinks = [] } = useQuery(listLinks, []);
 
   const templates = useLiveQuery(
     () => db.templates.toArray(),

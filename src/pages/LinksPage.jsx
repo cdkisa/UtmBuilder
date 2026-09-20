@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { useQuery } from '../hooks/useQuery';
 import { useToast } from '../hooks/useToast';
 import { useTaggedUrl, useCurrentAuthor } from '../hooks/useLinks';
 import { Button, EmptyState, Badge } from '../components/UI';
@@ -23,7 +23,7 @@ export default function LinksPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({ campaign: '', medium: '', source: '', term: '', content: '' });
 
-  const links = useLiveQuery(listLinks) || [];
+  const { data: links = [] } = useQuery(listLinks, []);
 
   const taggedUrl = useTaggedUrl();
   const author = useCurrentAuthor();

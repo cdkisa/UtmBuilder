@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { useQuery } from './useQuery.js';
 import { useWorkspace } from './useWorkspace';
 import { taggedUrlOf, createPolicy, listCustomParams } from '../links';
-import db from '../db';
+import { collection } from '../storage/provider.js';
 
 /** Who the app is acting as. Every Link Intent must name an author. */
 export function useCurrentAuthor() {
-  const members = useLiveQuery(() => db.members.toArray(), []) || [];
+  const { data: members = [] } = useQuery(() => collection('members').list(), []);
   return members.find(m => m.isAdmin)?.email || 'Admin';
 }
 
@@ -16,7 +16,7 @@ export function useCurrentAuthor() {
  */
 export function useLinkPolicy() {
   const { settings } = useWorkspace();
-  const rules = useLiveQuery(() => db.rules.toArray(), []) || [];
+  const { data: rules = [] } = useQuery(() => collection('rules').list(), []);
 
   return useMemo(() => createPolicy(settings, rules), [settings, rules]);
 }
@@ -28,7 +28,7 @@ export function useLinkPolicy() {
  */
 export function useTaggedUrl() {
   const policy = useLinkPolicy();
-  const customParamRows = useLiveQuery(listCustomParams, []) || [];
+  const { data: customParamRows = [] } = useQuery(listCustomParams, []);
 
   const paramsByLink = useMemo(() => {
     const byLink = new Map();
@@ -51,7 +51,7 @@ export function useTaggedUrl() {
  * shows and what gets composed cannot disagree.
  */
 export function useTemplateLookup() {
-  const templates = useLiveQuery(() => db.templates.toArray(), []) || [];
+  const { data: templates = [] } = useQuery(() => collection('templates').list(), []);
 
   return useMemo(() => {
     const byId = new Map(templates.map(t => [t.id, t]));

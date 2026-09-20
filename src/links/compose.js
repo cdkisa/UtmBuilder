@@ -1,4 +1,5 @@
 import { nanoid } from 'nanoid';
+import { createLinkDraft, taggedUrlFor } from './draft.js';
 
 const defaultGenerateCode = () => nanoid(7);
 
@@ -37,26 +38,6 @@ function stripExistingUtm(url) {
   return remaining ? `${base}?${remaining}${hash}` : `${base}${hash}`;
 }
 
-/** Assembles a Tagged URL. Every value reaching here is already normalised. */
-function taggedUrlFor(destination, utm, customParameters) {
-  if (!destination) return '';
-
-  const parts = [];
-  for (const [field, key] of UTM_FIELDS) {
-    const value = utm[field];
-    if (!value) continue;
-    parts.push(`${key}=${encodeURIComponent(String(value))}`);
-  }
-
-  for (const param of customParameters) {
-    if (!param.name || !param.value) continue;
-    parts.push(`${encodeURIComponent(param.name)}=${encodeURIComponent(param.value)}`);
-  }
-
-  if (parts.length === 0) return destination;
-  return destination + (destination.includes('?') ? '&' : '?') + parts.join('&');
-}
-
 /**
  * Derives the Tagged URL of a stored Link. Any `fullUrl` left on older rows is
  * ignored rather than trusted (ADR-0001). The Policy normalises here too, so a
@@ -92,15 +73,6 @@ export function composeTaggedUrl(destination, intent, policy, deps = {}) {
   const customParameters = (intent.customParameters || []).filter(p => p.name && p.value);
 
   return taggedUrlFor(cleaned, utm, customParameters);
-}
-
-/**
- * A Short URL records which Shortener the user picked. Nothing resolves it:
- * there is no redirect service behind any Shortener. See ADR-0003.
- */
-function shortUrlFor(shortener, generateCode) {
-  if (!shortener || !shortener.domain) return '';
-  return `https://${shortener.domain}/${generateCode()}`;
 }
 
 const isTyped = value => value != null && String(value).trim() !== '';
@@ -152,20 +124,21 @@ export function composeLink(intent, policy, deps = {}) {
 
   return {
     ok: true,
-    draft: {
+    draft: createLinkDraft({
       // What the user typed, with any Template's values beneath it, and not
       // what was normalised: normalising is a Policy decision that must stay
       // re-derivable (ADR-0001). The Template's values are snapshotted here so
       // editing the Template later changes no Link (ADR-0007).
       utm: resolved.utm,
+      taggedUtm: utm,
       destination,
       customParameters,
       attributes: intent.attributes || {},
       templateId: intent.templateId ?? null,
       notes: intent.notes || '',
       author: intent.author,
-      taggedUrl: taggedUrlFor(destination, utm, customParameters),
-      shortUrl: shortUrlFor(intent.shortener, generateCode),
-    },
+      shortener: intent.shortener,
+      generateCode,
+    }),
   };
 }

@@ -1,6 +1,10 @@
-import db from '../db.js';
+import { collection, transaction } from '../storage/provider.js';
 
-const LINK_TABLES = () => [db.links, db.linkAttributes, db.linkCustomParams];
+const LINK_COLLECTIONS = ['links', 'linkAttributes', 'linkCustomParams'];
+
+const links = () => collection('links');
+const linkAttributes = () => collection('linkAttributes');
+const linkCustomParams = () => collection('linkCustomParams');
 
 /**
  * Maps a Link Draft onto the stored row shape.
@@ -46,18 +50,18 @@ function qrFieldsFor(qr) {
   return { qrCode: true, qrDataUrl: qr.qrDataUrl, qrDesignId: qr.qrDesignId ?? null };
 }
 
-async function insert(draft, qr) {
-  const linkId = await db.links.add({ ...rowFor(draft), ...qrFieldsFor(qr) });
+async function insert(tx, draft, qr) {
+  const linkId = await tx.collection('links').add({ ...rowFor(draft), ...qrFieldsFor(qr) });
 
   const customParams = draft.customParameters.map(p => ({
     linkId,
     paramName: p.name,
     paramValue: p.value,
   }));
-  if (customParams.length > 0) await db.linkCustomParams.bulkAdd(customParams);
+  if (customParams.length > 0) await tx.collection('linkCustomParams').bulkAdd(customParams);
 
   const attrs = attributeRowsFor(linkId, draft.attributes);
-  if (attrs.length > 0) await db.linkAttributes.bulkAdd(attrs);
+  if (attrs.length > 0) await tx.collection('linkAttributes').bulkAdd(attrs);
 
   return linkId;
 }
@@ -68,7 +72,7 @@ async function insert(draft, qr) {
  * without the code it was created for.
  */
 export function saveLink(draft, qr) {
-  return db.transaction('rw', LINK_TABLES(), () => insert(draft, qr));
+  return transaction(LINK_COLLECTIONS, tx => insert(tx, draft, qr));
 }
 
 /**
@@ -76,32 +80,32 @@ export function saveLink(draft, qr) {
  * nothing behind, so a failed bulk create is safe to retry.
  */
 export function saveLinks(drafts) {
-  return db.transaction('rw', LINK_TABLES(), async () => {
+  return transaction(LINK_COLLECTIONS, async tx => {
     const ids = [];
-    for (const draft of drafts) ids.push(await insert(draft));
+    for (const draft of drafts) ids.push(await insert(tx, draft));
     return ids;
   });
 }
 
 /** Deletes a Link together with its Custom Parameter and Attribute rows. */
 export function deleteLink(linkId) {
-  return db.transaction('rw', LINK_TABLES(), async () => {
-    await db.linkCustomParams.where('linkId').equals(linkId).delete();
-    await db.linkAttributes.where('linkId').equals(linkId).delete();
-    await db.links.delete(linkId);
+  return transaction(LINK_COLLECTIONS, async tx => {
+    await tx.collection('linkCustomParams').removeWhere('linkId', linkId);
+    await tx.collection('linkAttributes').removeWhere('linkId', linkId);
+    await tx.collection('links').remove(linkId);
   });
 }
 
 /** Copies an existing Link and its children, crediting the given author. */
 export function cloneLink(linkId, author) {
-  return db.transaction('rw', LINK_TABLES(), async () => {
-    const original = await db.links.get(linkId);
+  return transaction(LINK_COLLECTIONS, async tx => {
+    const original = await tx.collection('links').get(linkId);
     if (!original) throw new Error(`No Link with id ${linkId}`);
 
     // `fullUrl` is dropped as well as the QR fields: older rows still carry a
     // stale one, and a new row must never be born with that cache (ADR-0001).
     const { id: _discarded, fullUrl, qrCode, qrDataUrl, qrDesignId, ...rest } = original;
-    const copyId = await db.links.add({
+    const copyId = await tx.collection('links').add({
       ...rest,
       // A Short URL identifies one Link, so a copy starts without one.
       shortUrl: '',
@@ -109,16 +113,20 @@ export function cloneLink(linkId, author) {
       createdAt: new Date().toISOString(),
     });
 
-    const params = await db.linkCustomParams.where('linkId').equals(linkId).toArray();
+    const params = await tx
+      .collection('linkCustomParams')
+      .list({ where: { field: 'linkId', equals: linkId } });
     if (params.length > 0) {
-      await db.linkCustomParams.bulkAdd(
+      await tx.collection('linkCustomParams').bulkAdd(
         params.map(p => ({ linkId: copyId, paramName: p.paramName, paramValue: p.paramValue })),
       );
     }
 
-    const attrs = await db.linkAttributes.where('linkId').equals(linkId).toArray();
+    const attrs = await tx
+      .collection('linkAttributes')
+      .list({ where: { field: 'linkId', equals: linkId } });
     if (attrs.length > 0) {
-      await db.linkAttributes.bulkAdd(
+      await tx.collection('linkAttributes').bulkAdd(
         attrs.map(a => ({ linkId: copyId, attributeId: a.attributeId, value: a.value })),
       );
     }
@@ -129,7 +137,7 @@ export function cloneLink(linkId, author) {
 
 /** Every Link, newest first. */
 export function listLinks() {
-  return db.links.reverse().toArray();
+  return links().list({ reverse: true });
 }
 
 /**
@@ -138,15 +146,16 @@ export function listLinks() {
  * still derived on read (ADR-0001).
  */
 export function attachQrCode(linkId, qr) {
-  return db.links.update(linkId, qrFieldsFor(qr));
+  return links().update(linkId, qrFieldsFor(qr));
 }
 
 /**
  * Every Link carrying a QR code. `qrCode` is not indexed, so this scans the
  * table; behind this name it is one place to fix if it ever needs an index.
  */
-export function listQrLinks() {
-  return db.links.filter(link => Boolean(link.qrCode)).toArray();
+export async function listQrLinks() {
+  const all = await links().list();
+  return all.filter(link => Boolean(link.qrCode));
 }
 
 /**
@@ -155,7 +164,7 @@ export function listQrLinks() {
  * them for a whole list than reading the child table.
  */
 export function listCustomParams() {
-  return db.linkCustomParams.toArray();
+  return linkCustomParams().list();
 }
 
 /**
@@ -164,8 +173,8 @@ export function listCustomParams() {
  * behind that nothing can name (ADR-0006).
  */
 export function deleteAttribute(attributeId) {
-  return db.transaction('rw', [db.attributes, db.linkAttributes], async () => {
-    await db.linkAttributes.where('attributeId').equals(attributeId).delete();
-    await db.attributes.delete(attributeId);
+  return transaction(['attributes', 'linkAttributes'], async tx => {
+    await tx.collection('linkAttributes').removeWhere('attributeId', attributeId);
+    await tx.collection('attributes').remove(attributeId);
   });
 }
